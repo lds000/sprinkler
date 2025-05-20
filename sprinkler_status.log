@@ -1,0 +1,78 @@
+[2025-05-19 22:13:15] [SYSTEM] Controller starting up...
+[2025-05-19 22:13:15] [WARN] Could not setup LED pin 17 (G): 'GPIO not allocated'
+[2025-05-19 22:13:15] [WARN] Could not setup LED pin 8 (G): 'GPIO not allocated'
+[2025-05-19 22:13:15] [WARN] Could not setup LED pin 7 (B): 'GPIO not allocated'
+[2025-05-19 22:13:15] [WARN] Could not setup PWM for pin 17 (G): You must setup() the GPIO channel as an output first
+[2025-05-19 22:13:15] [WARN] Could not setup PWM for pin 8 (G): You must setup() the GPIO channel as an output first
+[2025-05-19 22:13:15] [WARN] Could not setup PWM for pin 7 (B): You must setup() the GPIO channel as an output first
+[2025-05-19 22:13:15] [WARN] Could not setup relay pin 17 (Hanging Pots): 'GPIO not allocated'
+[2025-05-19 22:13:15] [WARN] Could not setup relay pin 27 (Garden): 'GPIO not allocated'
+[2025-05-19 22:13:15] [WARN] Could not setup relay pin 22 (Misters): 'GPIO not allocated'
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:15] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:16] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:17] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:17] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:17] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:17] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:17] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:17] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7
+[2025-05-19 22:13:17] [DEBUG] is_test_mode read test_mode.txt: '1', mtime: 1747622937.155011
+[2025-05-19 22:13:17] [TEST MODE] Hanging Pots OFF
+[2025-05-19 22:13:17] [DEBUG] is_test_mode read test_mode.txt: '1', mtime: 1747622937.155011
+[2025-05-19 22:13:17] [TEST MODE] Garden OFF
+[2025-05-19 22:13:17] [DEBUG] is_test_mode read test_mode.txt: '1', mtime: 1747622937.155011
+[2025-05-19 22:13:17] [TEST MODE] Misters OFF
+[2025-05-19 22:13:17] [DEBUG] main_loop has started
+[2025-05-19 22:13:17] [WARN] Could not set PWM duty cycle for pin 17 (G) on LED 1: 17
+[2025-05-19 22:13:17] [INFO] TEST_MODE = True
+[2025-05-19 22:13:17] [WARN] Could not set PWM duty cycle for pin 8 (G) on LED 3: 8
+[2025-05-19 22:13:17] [WARN] Could not set PWM duty cycle for pin 7 (B) on LED 3: 7

@@ -1,0 +1,76 @@
+{
+  "start_times": [
+    {
+      "time": "09:10",
+      "isEnabled": true
+    },
+    {
+      "time": "15:25",
+      "isEnabled": true
+    }
+  ],
+  "sets": [
+    {
+      "set_name": "Hanging Pots",
+      "run_duration_minutes": 7,
+      "pulse_duration_minutes": 1,
+      "soak_duration_minutes": 1,
+      "openPulseKeypadCommand": {},
+      "openSoakKeypadCommand": {},
+      "mode": true,
+      "seasonallyAdjustedMinutes": 7
+    },
+    {
+      "set_name": "Garden",
+      "run_duration_minutes": 10,
+      "pulse_duration_minutes": 2,
+      "soak_duration_minutes": 2,
+      "openPulseKeypadCommand": {},
+      "openSoakKeypadCommand": {},
+      "mode": true,
+      "seasonallyAdjustedMinutes": 10
+    },
+    {
+      "set_name": "Misters",
+      "openPulseKeypadCommand": {},
+      "openSoakKeypadCommand": {},
+      "mode": true
+    }
+  ],
+  "seasonal_adjustment": 1,
+  "schedule_days": [
+    true,
+    false,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "mist": {
+    "temperature_settings": [
+      {
+        "temperature": 90,
+        "interval": 20,
+        "duration": 2
+      },
+      {
+        "temperature": 95,
+        "interval": 20,
+        "duration": 2
+      },
+      {
+        "temperature": 100,
+        "interval": 20,
+        "duration": 2
+      }
+    ]
+  }
+}

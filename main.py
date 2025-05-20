@@ -1,0 +1,284 @@
+### main.py
+
+import os
+import time
+import threading
+from datetime import datetime
+from scheduler import load_json, should_run_today, is_start_time_enabled
+from gpio_controller import initialize_gpio, status_led_controller, turn_off
+from flask_api import app, manual_set, soon_set
+from run_manager import run_set
+from status import CURRENT_RUN
+from logger import log
+import logging
+from config import RELAYS
+import requests
+import json
+
+
+# NOTE: The Pi must NEVER write to test_mode.txt. This file is managed by the PC GUI only.
+SCHEDULE_FILE = "/home/lds00/sprinkler/sprinkler_schedule.json"
+MANUAL_COMMAND_FILE = "/home/lds00/sprinkler/manual_command.json"
+LOG_FILE = "/home/lds00/sprinkler/watering_history.log"
+TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
+MIST_STATUS_FILE = "/home/lds00/sprinkler/mist_status.json"
+
+DEBUG_VERBOSE = os.getenv("DEBUG_VERBOSE", "0") == "1"
+_last_test_mode = None  # for change detection
+
+# --- MIST LOGIC ENHANCEMENT ---
+# Fetch temperature from OpenWeatherMap
+OPENWEATHER_API_KEY = "cf5f2b7705dbc0348d0f8a773d5d2882"
+OPENWEATHER_ZIP = "83702"  # Boise ZIP
+OPENWEATHER_UNITS = "imperial"
+OPENWEATHER_URL = f"https://api.openweathermap.org/data/2.5/weather?zip={OPENWEATHER_ZIP},us&units={OPENWEATHER_UNITS}&appid={OPENWEATHER_API_KEY}"
+
+def get_current_temperature():
+    try:
+        response = requests.get(OPENWEATHER_URL, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        temp = data["main"]["temp"]
+        # Only log weather fetch if misting will be triggered (handled in mist_manager)
+        return temp
+    except Exception as e:
+        log(f"[ERROR] Failed to fetch temperature from OpenWeatherMap: {e}")
+        return 95  # Fallback default value
+
+# Track last mist times for each temperature setting
+_last_mist_times = {}
+
+def mist_manager(schedule):
+    mist_settings = schedule.get("mist", {}).get("temperature_settings", [])
+    if not mist_settings:
+        return
+    current_temp = get_current_temperature()
+    now = time.time()
+    from datetime import datetime, timedelta
+    # Find the highest temp threshold that applies
+    active_setting = None
+    for setting in sorted(mist_settings, key=lambda s: s.get("temperature", 0), reverse=True):
+        if current_temp >= setting.get("temperature", 0):
+            active_setting = setting
+            break
+    interval = active_setting.get("interval") if active_setting else None
+    duration = active_setting.get("duration") if active_setting else None
+    # Find last and next mist event times
+    try:
+        with open("/home/lds00/sprinkler/mist_status.json") as f:
+            last_status = json.load(f)
+            last_mist_event = last_status.get("last_mist_event")
+            next_mist_event = last_status.get("next_mist_event")
+    except Exception:
+        last_mist_event = None
+        next_mist_event = None
+    # Calculate next mist event time
+    if last_mist_event and interval:
+        try:
+            last_dt = datetime.fromisoformat(last_mist_event)
+            next_mist_event = (last_dt + timedelta(minutes=interval)).isoformat()
+        except Exception:
+            next_mist_event = None
+    # If a mist is triggered, update last_mist_event
+    mist_triggered = False
+    for setting in mist_settings:
+        temp_threshold = setting.get("temperature")
+        interval = setting.get("interval")  # in minutes
+        duration = setting.get("duration")  # in minutes
+        if temp_threshold is None or interval is None or duration is None:
+            continue
+        if current_temp >= temp_threshold:
+            key = f"{temp_threshold}_{interval}_{duration}"
+            last_time = _last_mist_times.get(key, 0)
+            if now - last_time >= interval * 60:
+                log(f"[WEATHER] Current temperature from OpenWeatherMap: {current_temp}°F")
+                log(f"[MIST] Triggering mist for temp >= {temp_threshold}°F: {duration} min")
+                threading.Thread(
+                    target=run_set,
+                    args=("Misters", duration, RELAYS, LOG_FILE),
+                    kwargs={
+                        "source": f"MIST_{temp_threshold}",
+                        "pulse": None,
+                        "soak": None
+                    },
+                    daemon=True
+                ).start()
+                _last_mist_times[key] = now
+                mist_triggered = True
+                last_mist_event = datetime.now().isoformat()
+                next_mist_event = (datetime.now() + timedelta(minutes=interval)).isoformat() if interval else None
+    # Update mist status for API
+    from flask_api import update_mist_status
+    update_mist_status(
+        is_misting=mist_triggered,
+        last_mist_event=last_mist_event,
+        next_mist_event=next_mist_event,
+        current_temperature=current_temp,
+        interval_minutes=interval,
+        duration_minutes=duration
+    )
+
+def ensure_all_relays_off():
+    for name, pin in RELAYS.items():
+        try:
+            turn_off(pin, name=name)
+        except Exception as e:
+            log(f"[WARN] Could not turn off pin {pin} at startup: {e}")
+
+def run_manual_command(command, schedule):
+    log("[MANUAL] Manual run triggered")
+    # Always (re)initialize GPIO before running manual command
+    from gpio_controller import initialize_gpio
+    initialize_gpio(RELAYS)
+    # Interrupt and stop any currently running set(s)
+    from run_manager import force_stop_all
+    force_stop_all()
+    sets = command.get("manual_run", {}).get("sets", [])
+    duration = command.get("manual_run", {}).get("duration_minutes", 1)
+
+    for set_name in sets:
+        match = next((s for s in schedule.get("sets", []) if s["set_name"] == set_name), None)
+        if match:
+            log(f"[MANUAL] Starting {set_name} for {duration} min")
+            threading.Thread(
+                target=run_set,
+                args=(set_name, duration, RELAYS, LOG_FILE),
+                kwargs={
+                    "source": "MANUAL",
+                    "pulse": match.get("pulse_duration_minutes"),
+                    "soak": match.get("soak_duration_minutes")
+                },
+                daemon=True
+            ).start()
+
+# Only read from test_mode.txt, never write to it!
+def read_test_mode_from_file():
+    try:
+        with open(TEST_MODE_FILE) as f:
+            return f.read().strip() == "1"
+    except Exception:
+        return False
+
+def get_next_scheduled_set(schedule, current_time):
+    # Returns the set scheduled to run within the next 10 minutes
+    from datetime import datetime, timedelta
+    now = datetime.strptime(current_time, "%H:%M")
+    for entry in schedule.get("start_times", []):
+        if not entry.get("isEnabled", False):
+            continue
+        sched_time = datetime.strptime(entry["time"], "%H:%M")
+        if 0 <= (sched_time - now).total_seconds() <= 600:
+            # Find first enabled set (not "Misters")
+            for s in schedule.get("sets", []):
+                if s["set_name"] != "Misters" and s.get("mode", True):
+                    return s["set_name"]
+    return None
+
+# Track misting state in memory for API
+mist_state = {
+    "is_misting": False,
+    "last_mist_event": None,
+    "next_mist_event": None,
+    "current_temperature": None,
+    "interval_minutes": None,
+    "duration_minutes": None
+}
+
+def update_mist_status(is_misting, last_mist_event, next_mist_event, current_temperature, interval_minutes, duration_minutes):
+    mist_state.update({
+        "is_misting": is_misting,
+        "last_mist_event": last_mist_event,
+        "next_mist_event": next_mist_event,
+        "current_temperature": current_temperature,
+        "interval_minutes": interval_minutes,
+        "duration_minutes": duration_minutes
+    })
+    try:
+        with open(MIST_STATUS_FILE, "w") as f:
+            json.dump(mist_state, f)
+    except Exception:
+        pass
+
+def main_loop():
+    global _last_test_mode, manual_set, soon_set
+    log("[DEBUG] main_loop has started")
+    last_manual_mtime = 0
+    _last_test_mode = read_test_mode_from_file()
+    log(f"[INFO] TEST_MODE = {_last_test_mode}")
+    manual_set = None
+    soon_set = None
+    error_zones = None
+    maintenance = False
+    while True:
+        now = datetime.now()
+        current_time = now.strftime("%H:%M")
+        try:
+            schedule = load_json(SCHEDULE_FILE)
+        except Exception as e:
+            log(f"[ERROR] Failed to load schedule: {e}")
+            time.sleep(5)
+            continue
+        # Manual run detection
+        if os.path.exists(MANUAL_COMMAND_FILE):
+            mtime = os.path.getmtime(MANUAL_COMMAND_FILE)
+            if mtime > last_manual_mtime:
+                try:
+                    data = load_json(MANUAL_COMMAND_FILE)
+                    sets = data.get("manual_run", {}).get("sets", [])
+                    manual_set = sets[0] if sets else None
+                    run_manual_command(data, schedule)
+                except Exception as e:
+                    log(f"[ERROR] Failed to parse or execute manual command: {e}")
+                finally:
+                    try:
+                        os.remove(MANUAL_COMMAND_FILE)
+                    except Exception as e:
+                        log(f"[WARN] Could not delete manual command file: {e}")
+                last_manual_mtime = mtime
+        else:
+            manual_set = None
+        # Scheduled soon detection
+        soon_set = get_next_scheduled_set(schedule, current_time)
+
+        if should_run_today(schedule):
+            if is_start_time_enabled(schedule, current_time):
+                for s in schedule.get("sets", []):
+                    if s["set_name"] != "Misters" and not s.get("mode", True):
+                        continue  # skip inactive non-mist sets
+                    log(f"[SCHEDULED] Launching set {s['set_name']} at {current_time}")
+                    threading.Thread(
+                        target=run_set,
+                        args=(s["set_name"], s.get("run_duration_minutes", 1), RELAYS, LOG_FILE),
+                        kwargs={
+                            "pulse": s.get("pulse_duration_minutes"),
+                            "soak": s.get("soak_duration_minutes")
+                        },
+                        daemon=True
+                    ).start()
+
+        # Enhanced mist logic: use temperature_settings
+        mist_manager(schedule)
+
+        current_test_mode = read_test_mode_from_file()
+        if current_test_mode != _last_test_mode:
+            log(f"[INFO] TEST_MODE changed to {current_test_mode}")
+            _last_test_mode = current_test_mode
+
+        time.sleep(1)
+
+def led_status_thread():
+    while True:
+        test_mode = read_test_mode_from_file()
+        # Use CURRENT_RUN, test_mode, manual_set, soon_set, error_zones, maintenance
+        status_led_controller(CURRENT_RUN, test_mode=test_mode)
+        time.sleep(0.1)
+
+if __name__ == "__main__":
+    initialize_gpio(RELAYS)
+    ensure_all_relays_off()
+    threading.Thread(target=main_loop, daemon=True).start()
+    threading.Thread(target=led_status_thread, daemon=True).start()
+    # Suppress Flask/Werkzeug request logs
+    import logging as py_logging
+    py_logging.getLogger('werkzeug').setLevel(py_logging.WARNING)
+    app.run(host="0.0.0.0", port=5000)
