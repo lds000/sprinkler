@@ -31,7 +31,7 @@ RGB_LEDS = [
     {'R': 21, 'G': 20, 'B': 16},   # Status LED (near GPIO21)
     {'R': 4,  'G': 17, 'B': 18},   # LED 1 (near GPIO4)
     {'R': 23, 'G': 24, 'B': 12},   # LED 2 (near GPIO23)
-    {'R': 25, 'G': 8,  'B': 7},    # LED 3 (near GPIO25)
+    {'R': 25, 'G': None,  'B': None},    # LED 3 (near GPIO25, G/B not connected)
 ]
 
 # LED assignments:
@@ -63,22 +63,35 @@ def set_rgb_pwm(led_idx, r, g, b, brightness=100):
     pins = RGB_LEDS[led_idx]
     for color, val in zip(['R', 'G', 'B'], [r, g, b]):
         duty = brightness if val else 0
-        try:
-            _pwm_channels[pins[color]].ChangeDutyCycle(duty)
-        except Exception as e:
-            log(f"[WARN] Could not set PWM duty cycle for pin {pins[color]} ({color}) on LED {led_idx}: {e}")
+        pin = pins[color]
+        if not isinstance(pin, int):
+            continue  # Skip if pin is None or not an integer
+        if pin in _pwm_channels:
+            try:
+                _pwm_channels[pin].ChangeDutyCycle(duty)
+            except Exception as e:
+                log(f"[WARN] Could not set PWM duty cycle for pin {pin} ({color}) on LED {led_idx}: {e}")
+        else:
+            try:
+                GPIO.setup(pin, GPIO.OUT)
+                GPIO.output(pin, GPIO.HIGH if val else GPIO.LOW)
+            except Exception as e:
+                log(f"[WARN] Could not set {color} (digital fallback) on pin {pin} for LED {led_idx}: {e}")
 
 def set_rgb(led_idx, r, g, b, brightness=100):
-    # Use PWM if initialized, else fallback to digital
-    if _pwm_channels:
-        set_rgb_pwm(led_idx, r, g, b, brightness)
-    else:
-        pins = RGB_LEDS[led_idx]
-        for color, val in zip(['R', 'G', 'B'], [r, g, b]):
+    pins = RGB_LEDS[led_idx]
+    for color, val in zip(['R', 'G', 'B'], [r, g, b]):
+        pin = pins[color]
+        if not isinstance(pin, int):
+            continue  # Skip if pin is None or not an integer
+        if _pwm_channels:
+            set_rgb_pwm(led_idx, r, g, b, brightness)
+            break  # set_rgb_pwm handles all channels at once
+        else:
             try:
-                GPIO.output(pins[color], GPIO.HIGH if val else GPIO.LOW)
+                GPIO.output(pin, GPIO.HIGH if val else GPIO.LOW)
             except Exception as e:
-                log(f"[WARN] Could not set {color} on pin {pins[color]} for LED {led_idx}: {e}")
+                log(f"[WARN] Could not set {color} on pin {pin} for LED {led_idx}: {e}")
 
 def all_leds_off():
     for i in range(len(RGB_LEDS)):
@@ -308,3 +321,18 @@ def get_led_colors(current_set, running, test_mode=False, error_zones=None, manu
         else:
             colors[set_name] = 'red'
     return colors
+
+def ensure_all_relays_off():
+    log("[DEBUG] ensure_all_relays_off called at startup.")
+    for name, pin in RELAYS.items():
+        try:
+            # Only turn off if not already off
+            import RPi.GPIO as GPIO
+            state = GPIO.input(pin)
+            if state == GPIO.HIGH:
+                log(f"[DEBUG] Turning OFF relay {name} (pin {pin}) in ensure_all_relays_off.")
+                turn_off(pin, name=name)
+            else:
+                log(f"[DEBUG] Relay {name} (pin {pin}) already OFF in ensure_all_relays_off.")
+        except Exception as e:
+            log(f"[WARN] Could not turn off pin {pin} at startup: {e}")

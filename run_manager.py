@@ -75,6 +75,7 @@ def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pu
         "Pulse_Time_Left_Sec": 0
     })
 
+    log(f"[DEBUG] Turning ON relay for {set_name} (pin {pin}) at {datetime.now().isoformat()}")
     if pulse and soak:
         while elapsed < total:
             CURRENT_RUN["Phase"] = "Watering"
@@ -85,10 +86,11 @@ def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pu
                     break
                 time.sleep(1)
                 elapsed += 1
-                pulse_left -= 1
                 CURRENT_RUN["Time_Remaining_Sec"] = total - elapsed
                 CURRENT_RUN["Pulse_Time_Left_Sec"] = pulse_left
+                pulse_left -= 1
             turn_off(pin)
+            log(f"[DEBUG] Turned OFF relay for {set_name} (pin {pin}) after pulse at {datetime.now().isoformat()}")
             CURRENT_RUN["Pulse_Time_Left_Sec"] = 0
             if elapsed < total:
                 CURRENT_RUN["Phase"] = "Soaking"
@@ -98,6 +100,7 @@ def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pu
                     CURRENT_RUN["Soak_Remaining_Sec"] = soak * 60 - (i + 1)
     else:
         turn_on(pin)
+        log(f"[DEBUG] Relay for {set_name} (pin {pin}) should now be ON for {total} seconds")
         for i in range(total):
             time.sleep(1)
             CURRENT_RUN.update({
@@ -109,6 +112,7 @@ def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pu
                 "Pulse_Time_Left_Sec": 0
             })
         turn_off(pin)
+        log(f"[DEBUG] Turned OFF relay for {set_name} (pin {pin}) after watering at {datetime.now().isoformat()}")
 
     turn_off(pin)
     end_time = datetime.now()

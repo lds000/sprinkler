@@ -276,6 +276,8 @@ def led_status_thread():
 if __name__ == "__main__":
     initialize_gpio(RELAYS)
     ensure_all_relays_off()
+    log("[DEBUG] Waiting 2 seconds after ensure_all_relays_off to avoid relay chatter at startup.")
+    time.sleep(2)
     threading.Thread(target=main_loop, daemon=True).start()
     threading.Thread(target=led_status_thread, daemon=True).start()
     # Suppress Flask/Werkzeug request logs
