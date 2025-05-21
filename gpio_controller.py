@@ -20,6 +20,7 @@ from datetime import datetime
 from logger import log
 import os
 import threading
+from config import RELAYS  # <-- Add this import
 
 STATUS_LOG = "/home/lds00/sprinkler/status_test_mode.log"
 TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
@@ -52,6 +53,8 @@ def setup_pwm():
     for led in RGB_LEDS:
         for color in ['R', 'G', 'B']:
             pin = led[color]
+            if not isinstance(pin, int):
+                continue  # Skip if pin is None or not an integer
             if pin not in _pwm_channels:
                 try:
                     _pwm_channels[pin] = GPIO.PWM(pin, PWM_FREQ)
