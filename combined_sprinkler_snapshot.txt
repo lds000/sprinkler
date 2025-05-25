@@ -58,6 +58,8 @@ import json
 
 TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
 LAST_COMPLETED_RUN_FILE = "/home/lds00/sprinkler/last_completed_run.json"
+WATERING_HISTORY_JSONL = "/home/lds00/sprinkler/watering_history.jsonl"
+MIST_STATUS_FILE = "/home/lds00/sprinkler/mist_status.json"
 
 app = Flask(__name__)
 
@@ -231,6 +233,13 @@ def status():
     except Exception:
         upcoming_runs = []
 
+    # --- today_is_watering_day ---
+    try:
+        from scheduler import should_run_today
+        today_is_watering_day = should_run_today(schedule)
+    except Exception:
+        today_is_watering_day = False
+
     resp = {
         "system_status": "All Systems Nominal",
         "zones": zones,
@@ -240,7 +249,8 @@ def status():
         "current_run": current_run,
         "next_run": next_run,
         "last_completed_run": last_completed_run,
-        "upcoming_runs": upcoming_runs
+        "upcoming_runs": upcoming_runs,
+        "today_is_watering_day": today_is_watering_day
     }
     return jsonify(resp)
 
@@ -251,6 +261,67 @@ def history_log():
             return f.read(), 200, {'Content-Type': 'text/plain'}
     except Exception as e:
         return str(e), 500
+
+@app.route("/history")
+def history():
+    try:
+        # Read and filter last 30 days
+        cutoff = datetime.now() - timedelta(days=30)
+        history = []
+        with open(WATERING_HISTORY_JSONL, "r") as f:
+            for line in f:
+                try:
+                    event = json.loads(line)
+                    event_dt = datetime.fromisoformat(event["date"])
+                    if event_dt >= cutoff:
+                        history.append(event)
+                except Exception:
+                    continue
+        return jsonify({"watering_history": history})
+    except Exception as e:
+        return jsonify({"watering_history": [], "error": str(e)})
+
+# Helper to update mist status (call from mist_manager in main.py)
+def update_mist_status(is_misting, last_mist_event, next_mist_event, current_temperature, interval_minutes, duration_minutes):
+    data = {
+        "is_misting": is_misting,
+        "last_mist_event": last_mist_event,
+        "next_mist_event": next_mist_event,
+        "current_temperature": current_temperature,
+        "interval_minutes": interval_minutes,
+        "duration_minutes": duration_minutes
+    }
+    try:
+        with open(MIST_STATUS_FILE, "w") as f:
+            json.dump(data, f)
+    except Exception as e:
+        pass
+
+@app.route("/mist-status")
+def mist_status():
+    try:
+        with open(MIST_STATUS_FILE) as f:
+            data = json.load(f)
+        # Add today_is_watering_day to mist-status as well
+        try:
+            schedule = load_json("/home/lds00/sprinkler/sprinkler_schedule.json")
+            from scheduler import should_run_today
+            today_is_watering_day = should_run_today(schedule)
+        except Exception:
+            today_is_watering_day = False
+        data["today_is_watering_day"] = today_is_watering_day
+        return jsonify(data)
+    except Exception:
+        # Return default/empty if not available
+        return jsonify({
+            "is_misting": False,
+            "last_mist_event": None,
+            "next_mist_event": None,
+            "current_temperature": None,
+            "interval_minutes": None,
+            "duration_minutes": None,
+            "today_is_watering_day": False
+        })
 
 def read_test_mode():
     try:
@@ -266,31 +337,46 @@ def read_test_mode():
 
 ### gpio_controller.py
 
+# LED pinout (BCM numbering):
+# LED 1: R=4,  G=17, B=18   # Near GPIO4
+# LED 2: R=23, G=24, B=12   # Near GPIO23
+# LED 3: R=25, G=8,  B=7    # Near GPIO25
+# Status: R=21, G=20, B=16  # Near GPIO21
+#
+# Example:
+# RGB_LEDS = [
+#     {'R': 21, 'G': 20, 'B': 16},   # Status LED (near GPIO21)
+#     {'R': 4,  'G': 17, 'B': 18},   # LED 1 (near GPIO4)
+#     {'R': 23, 'G': 24, 'B': 12},   # LED 2 (near GPIO23)
+#     {'R': 25, 'G': 8,  'B': 7},    # LED 3 (near GPIO25)
+# ]
+
 import RPi.GPIO as GPIO
 import time
 from datetime import datetime
 from logger import log
 import os
 import threading
+from config import RELAYS  # <-- Add this import
 
 STATUS_LOG = "/home/lds00/sprinkler/status_test_mode.log"
 TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
 
 _last_states = {}  # Track relay states to suppress duplicate logs
 
-# Define GPIO pins for 4 RGB LEDs (example pin numbers, adjust as needed)
+# Define GPIO pins for 4 RGB LEDs (reassigned for physical layout)
 RGB_LEDS = [
-    {'R': 5,  'G': 6,  'B': 13},   # LED 1 (status LED, replaces old STATUS_LED_PIN)
-    {'R': 19, 'G': 26, 'B': 21},   # LED 2
-    {'R': 20, 'G': 16, 'B': 12},   # LED 3
-    {'R': 25, 'G': 24, 'B': 23},   # LED 4
+    {'R': 21, 'G': 20, 'B': 16},   # Status LED (near GPIO21)
+    {'R': 4,  'G': 17, 'B': 18},   # LED 1 (near GPIO4)
+    {'R': 23, 'G': 24, 'B': 12},   # LED 2 (near GPIO23)
+    {'R': 25, 'G': None,  'B': None},    # LED 3 (near GPIO25, G/B not connected)
 ]
 
 # LED assignments:
-# LED 0: System status
-# LED 1: Hanging Pots
-# LED 2: Garden
-# LED 3: Misters
+# LED 0: System status (near GPIO21)
+# LED 1: Hanging Pots (near GPIO4)
+# LED 2: Garden (near GPIO23)
+# LED 3: Misters (near GPIO25)
 SET_LED_MAP = {
     "Hanging Pots": 1,
     "Garden": 2,
@@ -304,39 +390,76 @@ def setup_pwm():
     for led in RGB_LEDS:
         for color in ['R', 'G', 'B']:
             pin = led[color]
+            if not isinstance(pin, int):
+                continue  # Skip if pin is None or not an integer
             if pin not in _pwm_channels:
-                _pwm_channels[pin] = GPIO.PWM(pin, PWM_FREQ)
-                _pwm_channels[pin].start(0)
+                try:
+                    _pwm_channels[pin] = GPIO.PWM(pin, PWM_FREQ)
+                    _pwm_channels[pin].start(0)
+                except Exception as e:
+                    log(f"[WARN] Could not setup PWM for pin {pin} ({color}): {e}")
 
 def set_rgb_pwm(led_idx, r, g, b, brightness=100):
     pins = RGB_LEDS[led_idx]
     for color, val in zip(['R', 'G', 'B'], [r, g, b]):
         duty = brightness if val else 0
-        _pwm_channels[pins[color]].ChangeDutyCycle(duty)
+        pin = pins[color]
+        if not isinstance(pin, int):
+            continue  # Skip if pin is None or not an integer
+        if pin in _pwm_channels:
+            try:
+                _pwm_channels[pin].ChangeDutyCycle(duty)
+            except Exception as e:
+                log(f"[WARN] Could not set PWM duty cycle for pin {pin} ({color}) on LED {led_idx}: {e}")
+        else:
+            try:
+                GPIO.setup(pin, GPIO.OUT)
+                GPIO.output(pin, GPIO.HIGH if val else GPIO.LOW)
+            except Exception as e:
+                log(f"[WARN] Could not set {color} (digital fallback) on pin {pin} for LED {led_idx}: {e}")
 
 def set_rgb(led_idx, r, g, b, brightness=100):
-    # Use PWM if initialized, else fallback to digital
-    if _pwm_channels:
-        set_rgb_pwm(led_idx, r, g, b, brightness)
-    else:
-        pins = RGB_LEDS[led_idx]
-        GPIO.output(pins['R'], GPIO.HIGH if r else GPIO.LOW)
-        GPIO.output(pins['G'], GPIO.HIGH if g else GPIO.LOW)
-        GPIO.output(pins['B'], GPIO.HIGH if b else GPIO.LOW)
+    pins = RGB_LEDS[led_idx]
+    for color, val in zip(['R', 'G', 'B'], [r, g, b]):
+        pin = pins[color]
+        if not isinstance(pin, int):
+            continue  # Skip if pin is None or not an integer
+        if _pwm_channels:
+            set_rgb_pwm(led_idx, r, g, b, brightness)
+            break  # set_rgb_pwm handles all channels at once
+        else:
+            try:
+                GPIO.output(pin, GPIO.HIGH if val else GPIO.LOW)
+            except Exception as e:
+                log(f"[WARN] Could not set {color} on pin {pin} for LED {led_idx}: {e}")
 
 def all_leds_off():
     for i in range(len(RGB_LEDS)):
-        set_rgb(i, 0, 0, 0)
+        try:
+            set_rgb(i, 0, 0, 0)
+        except Exception as e:
+            log(f"[WARN] Could not turn off LED {i}: {e}")
+
+_last_test_mode_val = None
+_last_test_mode_mtime = None
 
 def is_test_mode():
+    global _last_test_mode_val, _last_test_mode_mtime
     try:
+        mtime = os.path.getmtime(TEST_MODE_FILE)
         with open(TEST_MODE_FILE) as f:
             val = f.read().strip()
-        mtime = os.path.getmtime(TEST_MODE_FILE)
-        log(f"[DEBUG] is_test_mode read test_mode.txt: '{val}', mtime: {mtime}")
+        if val != _last_test_mode_val or mtime != _last_test_mode_mtime:
+            log(f"[DEBUG] is_test_mode read test_mode.txt: '{val}', mtime: {mtime}")
+            _last_test_mode_val = val
+            _last_test_mode_mtime = mtime
         return val == "1"
     except Exception as e:
-        log(f"[DEBUG] is_test_mode failed to read test_mode.txt: {e}")
+        # Only log on actual change or error
+        if _last_test_mode_val is not None:
+            log(f"[DEBUG] is_test_mode failed to read test_mode.txt: {e}")
+            _last_test_mode_val = None
+            _last_test_mode_mtime = None
         return False
 
 def initialize_gpio(RELAYS):
@@ -344,12 +467,25 @@ def initialize_gpio(RELAYS):
     GPIO.setmode(GPIO.BCM)
     for led in RGB_LEDS:
         for color in ['R', 'G', 'B']:
-            GPIO.setup(led[color], GPIO.OUT)
-            GPIO.output(led[color], GPIO.LOW)
+            pin = led[color]
+            if isinstance(pin, int) and pin > 0:
+                try:
+                    GPIO.setup(pin, GPIO.OUT)
+                    GPIO.output(pin, GPIO.LOW)
+                except Exception as e:
+                    log(f"[WARN] Could not setup LED pin {pin} ({color}): {e}")
+            else:
+                log(f"[WARN] Skipping invalid LED pin: {pin} ({color})")
     setup_pwm()  # Now safe to call multiple times
     for name, pin in RELAYS.items():
-        GPIO.setup(pin, GPIO.OUT)
-        GPIO.output(pin, GPIO.LOW)
+        if isinstance(pin, int) and pin > 0:
+            try:
+                GPIO.setup(pin, GPIO.OUT)
+                GPIO.output(pin, GPIO.LOW)
+            except Exception as e:
+                log(f"[WARN] Could not setup relay pin {pin} ({name}): {e}")
+        else:
+            log(f"[WARN] Skipping invalid relay pin: {pin} ({name})")
     startup_blink()
 
 def startup_blink():
@@ -386,8 +522,10 @@ def turn_off(pin, name=None):
             log(f"[TEST MODE] {label} OFF")
         _last_states[pin] = "OFF"
     else:
-        GPIO.output(pin, GPIO.LOW)
-        _last_states[pin] = "OFF"
+        try:
+            GPIO.output(pin, GPIO.LOW)
+        except Exception as e:
+            log(f"[WARN] Could not turn off relay pin {pin} ({name}): {e}")
 
 # Set status LED (LED 0) color
 # color: 'idle', 'running', 'off', 'wifi', 'test', 'maintenance', 'error'
@@ -535,6 +673,21 @@ def get_led_colors(current_set, running, test_mode=False, error_zones=None, manu
             colors[set_name] = 'red'
     return colors
 
+def ensure_all_relays_off():
+    log("[DEBUG] ensure_all_relays_off called at startup.")
+    for name, pin in RELAYS.items():
+        try:
+            # Only turn off if not already off
+            import RPi.GPIO as GPIO
+            state = GPIO.input(pin)
+            if state == GPIO.HIGH:
+                log(f"[DEBUG] Turning OFF relay {name} (pin {pin}) in ensure_all_relays_off.")
+                turn_off(pin, name=name)
+            else:
+                log(f"[DEBUG] Relay {name} (pin {pin}) already OFF in ensure_all_relays_off.")
+        except Exception as e:
+            log(f"[WARN] Could not turn off pin {pin} at startup: {e}")
+
 
 ================================================================================
 📄 logger.py
@@ -584,6 +737,7 @@ from logger import log
 import logging
 from config import RELAYS
 import requests
+import json
 
 
 # NOTE: The Pi must NEVER write to test_mode.txt. This file is managed by the PC GUI only.
@@ -591,6 +745,7 @@ SCHEDULE_FILE = "/home/lds00/sprinkler/sprinkler_schedule.json"
 MANUAL_COMMAND_FILE = "/home/lds00/sprinkler/manual_command.json"
 LOG_FILE = "/home/lds00/sprinkler/watering_history.log"
 TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
+MIST_STATUS_FILE = "/home/lds00/sprinkler/mist_status.json"
 
 DEBUG_VERBOSE = os.getenv("DEBUG_VERBOSE", "0") == "1"
 _last_test_mode = None  # for change detection
@@ -623,6 +778,33 @@ def mist_manager(schedule):
         return
     current_temp = get_current_temperature()
     now = time.time()
+    from datetime import datetime, timedelta
+    # Find the highest temp threshold that applies
+    active_setting = None
+    for setting in sorted(mist_settings, key=lambda s: s.get("temperature", 0), reverse=True):
+        if current_temp >= setting.get("temperature", 0):
+            active_setting = setting
+            break
+    interval = active_setting.get("interval") if active_setting else None
+    duration = active_setting.get("duration") if active_setting else None
+    # Find last and next mist event times
+    try:
+        with open("/home/lds00/sprinkler/mist_status.json") as f:
+            last_status = json.load(f)
+            last_mist_event = last_status.get("last_mist_event")
+            next_mist_event = last_status.get("next_mist_event")
+    except Exception:
+        last_mist_event = None
+        next_mist_event = None
+    # Calculate next mist event time
+    if last_mist_event and interval:
+        try:
+            last_dt = datetime.fromisoformat(last_mist_event)
+            next_mist_event = (last_dt + timedelta(minutes=interval)).isoformat()
+        except Exception:
+            next_mist_event = None
+    # If a mist is triggered, update last_mist_event
+    mist_triggered = False
     for setting in mist_settings:
         temp_threshold = setting.get("temperature")
         interval = setting.get("interval")  # in minutes
@@ -646,6 +828,19 @@ def mist_manager(schedule):
                     daemon=True
                 ).start()
                 _last_mist_times[key] = now
+                mist_triggered = True
+                last_mist_event = datetime.now().isoformat()
+                next_mist_event = (datetime.now() + timedelta(minutes=interval)).isoformat() if interval else None
+    # Update mist status for API
+    from flask_api import update_mist_status
+    update_mist_status(
+        is_misting=mist_triggered,
+        last_mist_event=last_mist_event,
+        next_mist_event=next_mist_event,
+        current_temperature=current_temp,
+        interval_minutes=interval,
+        duration_minutes=duration
+    )
 
 def ensure_all_relays_off():
     for name, pin in RELAYS.items():
@@ -702,6 +897,31 @@ def get_next_scheduled_set(schedule, current_time):
                 if s["set_name"] != "Misters" and s.get("mode", True):
                     return s["set_name"]
     return None
+
+# Track misting state in memory for API
+mist_state = {
+    "is_misting": False,
+    "last_mist_event": None,
+    "next_mist_event": None,
+    "current_temperature": None,
+    "interval_minutes": None,
+    "duration_minutes": None
+}
+
+def update_mist_status(is_misting, last_mist_event, next_mist_event, current_temperature, interval_minutes, duration_minutes):
+    mist_state.update({
+        "is_misting": is_misting,
+        "last_mist_event": last_mist_event,
+        "next_mist_event": next_mist_event,
+        "current_temperature": current_temperature,
+        "interval_minutes": interval_minutes,
+        "duration_minutes": duration_minutes
+    })
+    try:
+        with open(MIST_STATUS_FILE, "w") as f:
+            json.dump(mist_state, f)
+    except Exception:
+        pass
 
 def main_loop():
     global _last_test_mode, manual_set, soon_set
@@ -780,6 +1000,8 @@ def led_status_thread():
 if __name__ == "__main__":
     initialize_gpio(RELAYS)
     ensure_all_relays_off()
+    log("[DEBUG] Waiting 2 seconds after ensure_all_relays_off to avoid relay chatter at startup.")
+    time.sleep(2)
     threading.Thread(target=main_loop, daemon=True).start()
     threading.Thread(target=led_status_thread, daemon=True).start()
     # Suppress Flask/Werkzeug request logs
@@ -801,8 +1023,16 @@ from status import CURRENT_RUN
 from logger import log
 from config import RELAYS  # ✅ Correct source for RELAYS
 import json
+from datetime import datetime, timedelta
+import threading
+
+WATERING_HISTORY_JSONL = "/home/lds00/sprinkler/watering_history.jsonl"
 
 LAST_COMPLETED_RUN_FILE = "/home/lds00/sprinkler/last_completed_run.json"
+
+
+# Per-set lock to prevent concurrent runs
+_set_locks = {name: threading.Lock() for name in RELAYS}
 
 
 def force_stop_all():
@@ -834,6 +1064,18 @@ def log_watering_history(log_file, set_name, start_dt, end_dt, source="SCHEDULED
             json.dump(last_run, f)
     except Exception as e:
         log(f"[WARN] Could not write last_completed_run.json: {e}")
+    # --- Persistent JSONL watering history ---
+    try:
+        event = {
+            "date": start_dt.isoformat(),
+            "set": set_name,
+            "duration_minutes": duration_minutes if duration_minutes is not None else int((end_dt - start_dt).total_seconds() // 60),
+            "status": status
+        }
+        with open(WATERING_HISTORY_JSONL, "a") as f:
+            f.write(json.dumps(event) + "\n")
+    except Exception as e:
+        log(f"[WARN] Could not write watering_history.jsonl: {e}")
 
 
 def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pulse=None, soak=None):
@@ -842,66 +1084,77 @@ def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pu
         log(f"[ERROR] Unknown set name: {set_name}")
         return
 
-    log(f"[SET] Running {set_name} for {duration_minutes} min ({source})")
-    start_time = datetime.now()
-    total = duration_minutes * 60
-    elapsed = 0
-    CURRENT_RUN.update({
-        "Running": True,
-        "Set": set_name,
-        "Phase": "Watering",
-        "Time_Remaining_Sec": total,
-        "Soak_Remaining_Sec": 0,
-        "Pulse_Time_Left_Sec": 0
-    })
+    lock = _set_locks.get(set_name)
+    if lock is None:
+        log(f"[ERROR] No lock found for set {set_name}")
+        return
 
-    if pulse and soak:
-        while elapsed < total:
-            CURRENT_RUN["Phase"] = "Watering"
-            turn_on(pin)
-            pulse_left = pulse * 60
-            for i in range(pulse * 60):
-                if elapsed >= total:
-                    break
-                time.sleep(1)
-                elapsed += 1
-                pulse_left -= 1
-                CURRENT_RUN["Time_Remaining_Sec"] = total - elapsed
-                CURRENT_RUN["Pulse_Time_Left_Sec"] = pulse_left
-            turn_off(pin)
-            CURRENT_RUN["Pulse_Time_Left_Sec"] = 0
-            if elapsed < total:
-                CURRENT_RUN["Phase"] = "Soaking"
-                CURRENT_RUN["Soak_Remaining_Sec"] = soak * 60
-                for i in range(soak * 60):
+    log(f"[LOCK] Attempting to acquire lock for set '{set_name}'")
+    with lock:
+        log(f"[LOCK] Acquired lock for set '{set_name}'")
+        log(f"[SET] Running {set_name} for {duration_minutes} min ({source})")
+        start_time = datetime.now()
+        total = duration_minutes * 60
+        elapsed = 0
+        CURRENT_RUN.update({
+            "Running": True,
+            "Set": set_name,
+            "Phase": "Watering",
+            "Time_Remaining_Sec": total,
+            "Soak_Remaining_Sec": 0,
+            "Pulse_Time_Left_Sec": 0
+        })
+
+        if pulse and soak:
+            while elapsed < total:
+                CURRENT_RUN["Phase"] = "Watering"
+                log(f"[DEBUG] Calling turn_on(pin={pin}) in run_set pulse/soak loop for set '{set_name}' (source={source})")
+                turn_on(pin)
+                pulse_left = pulse * 60
+                for i in range(pulse * 60):
+                    if elapsed >= total:
+                        break
                     time.sleep(1)
-                    CURRENT_RUN["Soak_Remaining_Sec"] = soak * 60 - (i + 1)
-    else:
-        turn_on(pin)
-        for i in range(total):
-            time.sleep(1)
-            CURRENT_RUN.update({
-                "Running": True,
-                "Set": set_name,
-                "Time_Remaining_Sec": total - i,
-                "Phase": "Watering",
-                "Soak_Remaining_Sec": 0,
-                "Pulse_Time_Left_Sec": 0
-            })
+                    elapsed += 1
+                    CURRENT_RUN["Time_Remaining_Sec"] = total - elapsed
+                    CURRENT_RUN["Pulse_Time_Left_Sec"] = pulse_left
+                    pulse_left -= 1
+                turn_off(pin)
+                log(f"[DEBUG] Turned OFF relay for {set_name} (pin {pin}) after pulse at {datetime.now().isoformat()}")
+                CURRENT_RUN["Pulse_Time_Left_Sec"] = 0
+                if elapsed < total:
+                    CURRENT_RUN["Phase"] = "Soaking"
+                    CURRENT_RUN["Soak_Remaining_Sec"] = soak * 60
+                    for i in range(soak * 60):
+                        time.sleep(1)
+                        CURRENT_RUN["Soak_Remaining_Sec"] = soak * 60 - (i + 1)
+        else:
+            log(f"[DEBUG] Calling turn_on(pin={pin}) in run_set (no pulse/soak) for set '{set_name}' (source={source})")
+            turn_on(pin)
+            log(f"[DEBUG] Relay for {set_name} (pin {pin}) should now be ON for {total} seconds")
+            for i in range(total):
+                time.sleep(1)
+                CURRENT_RUN.update({
+                    "Running": True,
+                    "Set": set_name,
+                    "Time_Remaining_Sec": total - i,
+                    "Phase": "Watering",
+                    "Soak_Remaining_Sec": 0,
+                    "Pulse_Time_Left_Sec": 0
+                })
         turn_off(pin)
-
-    turn_off(pin)
-    end_time = datetime.now()
-    CURRENT_RUN.update({
-        "Running": False,
-        "Set": "",
-        "Time_Remaining_Sec": 0,
-        "Soak_Remaining_Sec": 0,
-        "Phase": "",
-        "Pulse_Time_Left_Sec": 0
-    })
-    log_watering_history(log_file, set_name, start_time, end_time, source, status="Completed", duration_minutes=duration_minutes)
-    log(f"[SET] Completed {set_name}")
+        end_time = datetime.now()
+        CURRENT_RUN.update({
+            "Running": False,
+            "Set": "",
+            "Time_Remaining_Sec": 0,
+            "Soak_Remaining_Sec": 0,
+            "Phase": "",
+            "Pulse_Time_Left_Sec": 0
+        })
+        log_watering_history(log_file, set_name, start_time, end_time, source, status="Completed", duration_minutes=duration_minutes)
+        log(f"[SET] Completed {set_name}")
+    log(f"[LOCK] Released lock for set '{set_name}'")
 
 
 ================================================================================

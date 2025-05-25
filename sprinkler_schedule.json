@@ -40,7 +40,7 @@
   "seasonal_adjustment": 1,
   "schedule_days": [
     true,
-    false,
+    true,
     true,
     true,
     true,

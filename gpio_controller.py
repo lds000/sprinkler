@@ -103,15 +103,26 @@ def all_leds_off():
         except Exception as e:
             log(f"[WARN] Could not turn off LED {i}: {e}")
 
+_last_test_mode_val = None
+_last_test_mode_mtime = None
+
 def is_test_mode():
+    global _last_test_mode_val, _last_test_mode_mtime
     try:
+        mtime = os.path.getmtime(TEST_MODE_FILE)
         with open(TEST_MODE_FILE) as f:
             val = f.read().strip()
-        mtime = os.path.getmtime(TEST_MODE_FILE)
-        log(f"[DEBUG] is_test_mode read test_mode.txt: '{val}', mtime: {mtime}")
+        if val != _last_test_mode_val or mtime != _last_test_mode_mtime:
+            log(f"[DEBUG] is_test_mode read test_mode.txt: '{val}', mtime: {mtime}")
+            _last_test_mode_val = val
+            _last_test_mode_mtime = mtime
         return val == "1"
     except Exception as e:
-        log(f"[DEBUG] is_test_mode failed to read test_mode.txt: {e}")
+        # Only log on actual change or error
+        if _last_test_mode_val is not None:
+            log(f"[DEBUG] is_test_mode failed to read test_mode.txt: {e}")
+            _last_test_mode_val = None
+            _last_test_mode_mtime = None
         return False
 
 def initialize_gpio(RELAYS):
