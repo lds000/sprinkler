@@ -13,6 +13,7 @@ TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
 LAST_COMPLETED_RUN_FILE = "/home/lds00/sprinkler/last_completed_run.json"
 WATERING_HISTORY_JSONL = "/home/lds00/sprinkler/watering_history.jsonl"
 MIST_STATUS_FILE = "/home/lds00/sprinkler/mist_status.json"
+SOIL_LOG_PATH = "/home/lds00/sprinkler/soil_readings.log"
 
 app = Flask(__name__)
 
@@ -275,6 +276,51 @@ def mist_status():
             "duration_minutes": None,
             "today_is_watering_day": False
         })
+
+@app.route("/soil-latest")
+def soil_latest():
+    try:
+        with open(SOIL_LOG_PATH, "r") as f:
+            lines = f.readlines()
+            if not lines:
+                return jsonify({"error": "No soil readings available."}), 404
+            last_line = lines[-1]
+            # Format: timestamp | {json}
+            ts, json_part = last_line.split("|", 1)
+            return jsonify({"timestamp": ts.strip(), **json.loads(json_part)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/soil-history")
+def soil_history():
+    try:
+        N = int(request.args.get("n", 100))  # Default: last 100 readings
+        readings = []
+        with open(SOIL_LOG_PATH, "r") as f:
+            for line in f:
+                try:
+                    ts, json_part = line.split("|", 1)
+                    entry = {"timestamp": ts.strip(), **json.loads(json_part)}
+                    readings.append(entry)
+                except Exception:
+                    continue
+        return jsonify(readings[-N:])
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/soil-data", methods=["POST"])
+def soil_data():
+    try:
+        data = request.get_json(force=True)
+        # Log as a single line: timestamp | {json}
+        ts = data.get("timestamp", datetime.now().isoformat())
+        with open(SOIL_LOG_PATH, "a") as f:
+            f.write(f"{ts} | {json.dumps(data)}\n")
+        return jsonify({"status": "ok"}), 200
+    except Exception as e:
+        with open("error_log.txt", "a") as ef:
+            ef.write(f"[SOIL-DATA ERROR] {datetime.now().isoformat()} - {str(e)}\n")
+        return jsonify({"error": str(e)}), 500
 
 def read_test_mode():
     try:

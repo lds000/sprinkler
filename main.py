@@ -43,16 +43,23 @@ def get_current_temperature():
         return temp
     except Exception as e:
         log(f"[ERROR] Failed to fetch temperature from OpenWeatherMap: {e}")
-        return 95  # Fallback default value
+        return None  # Return None on error
 
 # Track last mist times for each temperature setting
 _last_mist_times = {}
 
 def mist_manager(schedule):
+    # Prevent misting if a manual run is active
+    if manual_set is not None:
+        log("[MIST] Skipping misting because manual run is active.")
+        return
     mist_settings = schedule.get("mist", {}).get("temperature_settings", [])
     if not mist_settings:
         return
     current_temp = get_current_temperature()
+    if current_temp is None:
+        log("[MIST] Skipping misting because temperature is unavailable.")
+        return
     now = time.time()
     from datetime import datetime, timedelta
     # Find the highest temp threshold that applies
@@ -276,6 +283,13 @@ def led_status_thread():
 if __name__ == "__main__":
     initialize_gpio(RELAYS)
     ensure_all_relays_off()
+    # Clear any manual runs at startup
+    try:
+        os.remove(MANUAL_COMMAND_FILE)
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        log(f"[WARN] Could not delete manual command file at startup: {e}")
     log("[DEBUG] Waiting 2 seconds after ensure_all_relays_off to avoid relay chatter at startup.")
     time.sleep(2)
     threading.Thread(target=main_loop, daemon=True).start()

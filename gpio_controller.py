@@ -205,6 +205,8 @@ def set_status_led(color):
         set_rgb(0, 1, 1, 1, 100)  # White
     elif color == 'error':
         set_rgb(0, 1, 1, 0, 100)  # Yellow
+    elif color == 'soaking':  # New color for soaking phase
+        set_rgb(0, 1, 0, 1, 100)  # Purple
     else:
         set_rgb(0, 0, 0, 0)
 
@@ -289,12 +291,24 @@ def status_led_controller(CURRENT_RUN, test_mode=False, error_zones=None, manual
             continue
         # Normal running/idle
         if running:
-            set_status_led('running')
-            update_set_leds(current_set, running)
-            time.sleep(0.2)
-            set_status_led('off')
-            update_set_leds(current_set, running)
-            time.sleep(0.2)
+            # Check for soaking phase for current set
+            from status import CURRENT_RUN
+            phase = CURRENT_RUN.get("Phase", "")
+            if phase == "Soaking":
+                # Flash purple for soaking
+                set_status_led('soaking')  # We'll add this color
+                update_set_leds(current_set, running)
+                time.sleep(0.2)
+                set_status_led('off')
+                update_set_leds(current_set, running)
+                time.sleep(0.2)
+            else:
+                set_status_led('running')
+                update_set_leds(current_set, running)
+                time.sleep(0.2)
+                set_status_led('off')
+                update_set_leds(current_set, running)
+                time.sleep(0.2)
         else:
             set_status_led('idle')
             update_set_leds(current_set, running)
