@@ -1,4 +1,7 @@
-2025-05-25T21:30:21.671798 | {"timestamp": "2025-05-25T21:30:21.671798", "moisture": 14, "wetness_percent": 0.0, "lux": 1554.9776422764228, "sensor_id": "pi_zero_1"}
+2025-01-25T21:30:21.671798 | {"timestamp": "2025-01-25T21:30:21.671798", "moisture": 14, "wetness_percent": 0.5, "lux": 1554.9776422764228, "sensor_id": "pi_zero_1"}
+2025-02-25T21:30:21.671798 | {"timestamp": "2025-02-25T21:30:21.671798", "moisture": 14, "wetness_percent": 0.2, "lux": 1554.9776422764228, "sensor_id": "pi_zero_1"}
+2025-03-25T21:30:21.671798 | {"timestamp": "2025-03-25T21:30:21.671798", "moisture": 14, "wetness_percent": 0.3, "lux": 1554.9776422764228, "sensor_id": "pi_zero_1"}
+2025-04-25T21:30:21.671798 | {"timestamp": "2025-04-25T21:30:21.671798", "moisture": 14, "wetness_percent": 0.5, "lux": 1554.9776422764228, "sensor_id": "pi_zero_1"}
 2025-05-25T21:30:28.141150 | {"timestamp": "2025-05-25T21:30:28.141150", "moisture": 14, "wetness_percent": 0.0, "lux": 1555.2202235772359, "sensor_id": "pi_zero_1"}
 2025-05-25T21:30:34.634021 | {"timestamp": "2025-05-25T21:30:34.634021", "moisture": 14, "wetness_percent": 0.0, "lux": 1554.5397357723577, "sensor_id": "pi_zero_1"}
 2025-05-25T21:44:33.527263 | {"timestamp": "2025-05-25T21:44:33.527263", "moisture": 14, "wetness_percent": 0.0, "lux": 1556.7922764227646, "sensor_id": "pi_zero_1"}
