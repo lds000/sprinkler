@@ -76,6 +76,25 @@ def run_set(set_name, duration_minutes, RELAYS, log_file, source="SCHEDULED", pu
     log(f"[LOCK] Attempting to acquire lock for set '{set_name}'")
     with lock:
         log(f"[LOCK] Acquired lock for set '{set_name}'")
+        # Log mist run with temperature if applicable
+        if set_name == "Misters" and source and source.startswith("MIST_"):
+            try:
+                temp = source.split("_")[1]
+                log_msg = f"Misters (Temp {temp}°F) Start: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                log(log_msg)
+                # Also log to watering_history.jsonl
+                event = {
+                    "date": datetime.now().isoformat(),
+                    "set": set_name,
+                    "duration_minutes": duration_minutes,
+                    "status": "Started",
+                    "source": source,
+                    "note": log_msg
+                }
+                with open(WATERING_HISTORY_JSONL, "a") as f:
+                    f.write(json.dumps(event) + "\n")
+            except Exception as e:
+                log(f"[WARN] Could not log mist run with temp: {e}")
         log(f"[SET] Running {set_name} for {duration_minutes} min ({source})")
         start_time = datetime.now()
         total = duration_minutes * 60
