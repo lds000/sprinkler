@@ -258,8 +258,10 @@ def main_loop():
         if should_run_today(schedule):
             if is_start_time_enabled(schedule, current_time):
                 for s in schedule.get("sets", []):
-                    if s["set_name"] != "Misters" and not s.get("mode", True):
-                        continue  # skip inactive non-mist sets
+                    if s["set_name"] == "Misters":
+                        continue  # skip Misters for scheduled runs
+                    if not s.get("mode", True):
+                        continue  # skip inactive sets
                     log(f"[SCHEDULED] Launching set {s['set_name']} at {current_time}")
                     threading.Thread(
                         target=run_set,
