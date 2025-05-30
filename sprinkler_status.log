@@ -1,7 +1,0 @@
-[2025-05-27 10:43:08] [SYSTEM] Controller starting up...
-[2025-05-27 10:43:08] [WARN] Skipping invalid LED pin: None (G)
-[2025-05-27 10:43:08] [WARN] Skipping invalid LED pin: None (B)
-[2025-05-27 10:43:10] [DEBUG] is_test_mode read test_mode.txt: '0', mtime: 1747789864.570012
-[2025-05-27 10:43:10] [DEBUG] Waiting 2 seconds after ensure_all_relays_off to avoid relay chatter at startup.
-[2025-05-27 10:43:12] [DEBUG] main_loop has started
-[2025-05-27 10:43:12] [INFO] TEST_MODE = False
