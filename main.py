@@ -33,17 +33,25 @@ OPENWEATHER_ZIP = "83702"  # Boise ZIP
 OPENWEATHER_UNITS = "imperial"
 OPENWEATHER_URL = f"https://api.openweathermap.org/data/2.5/weather?zip={OPENWEATHER_ZIP},us&units={OPENWEATHER_UNITS}&appid={OPENWEATHER_API_KEY}"
 
+# --- Weather caching for mist logic ---
+_weather_cache = {"temp": None, "timestamp": 0}
+WEATHER_CACHE_SECONDS = 300  # 5 minutes
+
 def get_current_temperature():
+    now = time.time()
+    if _weather_cache["temp"] is not None and now - _weather_cache["timestamp"] < WEATHER_CACHE_SECONDS:
+        return _weather_cache["temp"]
     try:
         response = requests.get(OPENWEATHER_URL, timeout=5)
         response.raise_for_status()
         data = response.json()
         temp = data["main"]["temp"]
-        # Only log weather fetch if misting will be triggered (handled in mist_manager)
+        _weather_cache["temp"] = temp
+        _weather_cache["timestamp"] = now
         return temp
     except Exception as e:
         log(f"[ERROR] Failed to fetch temperature from OpenWeatherMap: {e}")
-        return None  # Return None on error
+        return _weather_cache["temp"]  # Return last known temp (may be None)
 
 # Track last mist times for each temperature setting
 _last_mist_times = {}
