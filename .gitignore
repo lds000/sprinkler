@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# Logs and runtime files
+*.log
+*.jsonl
+mist_status.json
+last_completed_run.json
+sprinkler_status.log
+soil_readings.log
+test_mode.txt
+
+# Systemd service file (optional, comment out if you want to track it)
+sprinkler.service
+
+# Environment and secrets (add if you use them)
+.env
+*.env
+
+# VSCode and editor settings
+.vscode/
