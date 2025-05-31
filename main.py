@@ -214,6 +214,9 @@ def update_mist_status(is_misting, last_mist_event, next_mist_event, current_tem
     except Exception:
         pass
 
+# Track last scheduled run for each start time (global)
+last_scheduled_run = {}
+
 def main_loop():
     global _last_test_mode, manual_set, soon_set
     log("[DEBUG] main_loop has started")
@@ -227,6 +230,7 @@ def main_loop():
     while True:
         now = datetime.now()
         current_time = now.strftime("%H:%M")
+        today_str = now.strftime("%Y-%m-%d")
         try:
             schedule = load_json(SCHEDULE_FILE)
         except Exception as e:
@@ -256,22 +260,30 @@ def main_loop():
         soon_set = get_next_scheduled_set(schedule, current_time)
 
         if should_run_today(schedule):
-            if is_start_time_enabled(schedule, current_time):
-                for s in schedule.get("sets", []):
-                    if s["set_name"] == "Misters":
-                        continue  # skip Misters for scheduled runs
-                    if not s.get("mode", True):
-                        continue  # skip inactive sets
-                    log(f"[SCHEDULED] Launching set {s['set_name']} at {current_time}")
-                    threading.Thread(
-                        target=run_set,
-                        args=(s["set_name"], s.get("run_duration_minutes", 1), RELAYS, LOG_FILE),
-                        kwargs={
-                            "pulse": s.get("pulse_duration_minutes"),
-                            "soak": s.get("soak_duration_minutes")
-                        },
-                        daemon=True
-                    ).start()
+            for entry in schedule.get("start_times", []):
+                sched_time = entry["time"]
+                if not entry.get("isEnabled", False):
+                    continue
+                # Only run if we haven't already run this start_time today
+                if last_scheduled_run.get(sched_time) == today_str:
+                    continue
+                if current_time == sched_time:
+                    for s in schedule.get("sets", []):
+                        if s["set_name"] == "Misters":
+                            continue  # skip Misters for scheduled runs
+                        if not s.get("mode", True):
+                            continue  # skip inactive sets
+                        log(f"[SCHEDULED] Launching set {s['set_name']} at {current_time}")
+                        threading.Thread(
+                            target=run_set,
+                            args=(s["set_name"], s.get("run_duration_minutes", 1), RELAYS, LOG_FILE),
+                            kwargs={
+                                "pulse": s.get("pulse_duration_minutes"),
+                                "soak": s.get("soak_duration_minutes")
+                            },
+                            daemon=True
+                        ).start()
+                    last_scheduled_run[sched_time] = today_str
 
         # Enhanced mist logic: use temperature_settings
         mist_manager(schedule)
