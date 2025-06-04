@@ -9,8 +9,11 @@ def load_json(path):
         return json.load(f)
 
 def get_schedule_day_index():
-    base = datetime(2024, 1, 1)
-    return (datetime.now().date() - base.date()).days % 14
+    base = datetime(2023, 12, 31)  # Sunday
+    today = datetime.now().date()
+    idx = (today - base.date()).days % 14
+    print(f"[DEBUG] get_schedule_day_index: base={base.date()}, today={today}, idx={idx}")
+    return idx
 
 def should_run_today(schedule):
     idx = get_schedule_day_index()

@@ -126,43 +126,45 @@ def status():
         days_checked = 0
         max_days = 30
         def get_day_index_for_date(date):
-            base = datetime(2024, 1, 1)
+            base = datetime(2023, 12, 31)  # Match scheduler.py (Sunday)
             return (date.date() - base.date()).days % 14
         found = False
         while not found and days_checked < max_days:
             day = now + timedelta(days=days_checked)
             idx = get_day_index_for_date(day)
-            if schedule.get("schedule_days", [False]*14)[idx]:
-                for entry in schedule.get("start_times", []):
-                    if not entry.get("isEnabled", False):
+            if not schedule.get("schedule_days", [False]*14)[idx]:
+                days_checked += 1
+                continue  # skip non-watering days
+            for entry in schedule.get("start_times", []):
+                if not entry.get("isEnabled", False):
+                    continue
+                sched_time = entry["time"]
+                set_start_dt = datetime.strptime(f"{day.strftime('%Y-%m-%d')} {sched_time}", "%Y-%m-%d %H:%M")
+                if set_start_dt < now and days_checked == 0:
+                    continue
+                for s in schedule.get("sets", []):
+                    if s["set_name"] == "Misters" or not s.get("mode", True):
                         continue
-                    sched_time = entry["time"]
-                    set_start_dt = datetime.strptime(f"{day.strftime('%Y-%m-%d')} {sched_time}", "%Y-%m-%d %H:%M")
-                    if set_start_dt <= now and days_checked == 0:
-                        continue
-                    for s in schedule.get("sets", []):
-                        if s["set_name"] == "Misters" or not s.get("mode", True):
-                            continue
-                        duration = s.get("seasonallyAdjustedMinutes") or s.get("run_duration_minutes", 1)
-                        pulse = s.get("pulse_duration_minutes")
-                        soak = s.get("soak_duration_minutes")
-                        if pulse and soak and pulse > 0 and soak > 0:
-                            cycles = duration // (pulse + soak)
-                            remainder = duration % (pulse + soak)
-                            true_minutes = cycles * (pulse + soak) + remainder
-                        else:
-                            true_minutes = duration
-                        if set_start_dt > now or days_checked > 0:
-                            next_run = {
-                                "set": s["set_name"],
-                                "start_time": set_start_dt.isoformat(),
-                                "duration_minutes": true_minutes
-                            }
-                            found = True
-                            break
-                        set_start_dt += timedelta(minutes=true_minutes)
-                    if found:
+                    duration = s.get("seasonallyAdjustedMinutes") or s.get("run_duration_minutes", 1)
+                    pulse = s.get("pulse_duration_minutes")
+                    soak = s.get("soak_duration_minutes")
+                    if pulse and soak and pulse > 0 and soak > 0:
+                        cycles = duration // (pulse + soak)
+                        remainder = duration % (pulse + soak)
+                        true_minutes = cycles * (pulse + soak) + remainder
+                    else:
+                        true_minutes = duration
+                    if set_start_dt > now or days_checked > 0:
+                        next_run = {
+                            "set": s["set_name"],
+                            "start_time": set_start_dt.isoformat(),
+                            "duration_minutes": true_minutes
+                        }
+                        found = True
                         break
+                    set_start_dt += timedelta(minutes=true_minutes)
+                if found:
+                    break
             days_checked += 1
     except Exception:
         next_run = None
@@ -183,46 +185,48 @@ def status():
         days_checked = 0
         max_days = 30  # Prevent infinite loop if schedule_days is all False
         def get_day_index_for_date(date):
-            base = datetime(2024, 1, 1)
+            base = datetime(2023, 12, 31)  # Match scheduler.py (Sunday)
             return (date.date() - base.date()).days % 14
         while len(upcoming_runs) < N and days_checked < max_days:
             day = now + timedelta(days=days_checked)
             idx = get_day_index_for_date(day)
-            if schedule.get("schedule_days", [False]*14)[idx]:
-                for entry in schedule.get("start_times", []):
-                    if not entry.get("isEnabled", False):
+            if not schedule.get("schedule_days", [False]*14)[idx]:
+                days_checked += 1
+                continue  # skip non-watering days
+            for entry in schedule.get("start_times", []):
+                if not entry.get("isEnabled", False):
+                    continue
+                sched_time = entry["time"]
+                set_start_dt = datetime.strptime(f"{day.strftime('%Y-%m-%d')} {sched_time}", "%Y-%m-%d %H:%M")
+                # If today, skip times already passed
+                if set_start_dt < now and days_checked == 0:
+                    continue
+                # Serially schedule each enabled set (except Misters)
+                for s in schedule.get("sets", []):
+                    if s["set_name"] == "Misters" or not s.get("mode", True):
                         continue
-                    sched_time = entry["time"]
-                    set_start_dt = datetime.strptime(f"{day.strftime('%Y-%m-%d')} {sched_time}", "%Y-%m-%d %H:%M")
-                    # If today, skip times already passed
-                    if set_start_dt <= now and days_checked == 0:
-                        continue
-                    # Serially schedule each enabled set (except Misters)
-                    for s in schedule.get("sets", []):
-                        if s["set_name"] == "Misters" or not s.get("mode", True):
-                            continue
-                        duration = s.get("seasonallyAdjustedMinutes") or s.get("run_duration_minutes", 1)
-                        # Calculate true run time with pulse/soak if present
-                        pulse = s.get("pulse_duration_minutes")
-                        soak = s.get("soak_duration_minutes")
-                        if pulse and soak and pulse > 0 and soak > 0:
-                            # Number of cycles: total duration divided by (pulse+soak)
-                            cycles = duration // (pulse + soak)
-                            remainder = duration % (pulse + soak)
-                            true_minutes = cycles * (pulse + soak) + remainder
-                        else:
-                            true_minutes = duration
-                        if set_start_dt > now or days_checked > 0:
-                            upcoming_runs.append({
-                                "set": s["set_name"],
-                                "start_time": set_start_dt.isoformat(),
-                                "duration_minutes": true_minutes
-                            })
-                        set_start_dt += timedelta(minutes=true_minutes)
-                        if len(upcoming_runs) >= N:
-                            break
+                    duration = s.get("seasonallyAdjustedMinutes") or s.get("run_duration_minutes", 1)
+                    # Calculate true run time with pulse/soak if present
+                    pulse = s.get("pulse_duration_minutes")
+                    soak = s.get("soak_duration_minutes")
+                    if pulse and soak and pulse > 0 and soak > 0:
+                        # Number of cycles: total duration divided by (pulse+soak)
+                        cycles = duration // (pulse + soak)
+                        remainder = duration % (pulse + soak)
+                        true_minutes = cycles * (pulse + soak) + remainder
+                    else:
+                        true_minutes = duration
+                    if set_start_dt > now or days_checked > 0:
+                        upcoming_runs.append({
+                            "set": s["set_name"],
+                            "start_time": set_start_dt.isoformat(),
+                            "duration_minutes": true_minutes
+                        })
+                    set_start_dt += timedelta(minutes=true_minutes)
                     if len(upcoming_runs) >= N:
                         break
+                if len(upcoming_runs) >= N:
+                    break
             days_checked += 1
         upcoming_runs = upcoming_runs[:N]
     except Exception:

@@ -284,6 +284,9 @@ def main_loop():
                             daemon=True
                         ).start()
                     last_scheduled_run[sched_time] = today_str
+        else:
+            # Not a watering day, skip scheduling
+            pass
 
         # Enhanced mist logic: use temperature_settings
         mist_manager(schedule)
@@ -303,6 +306,32 @@ def led_status_thread():
         time.sleep(0.1)
 
 if __name__ == "__main__":
+    # --- Port 5000 check and prompt (move to very top) ---
+    import socket
+    import subprocess
+    def is_port_in_use(port):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            return s.connect_ex(("127.0.0.1", port)) == 0
+    port = 5000
+    if is_port_in_use(port):
+        print(f"Port {port} is already in use.")
+        # Find the process using the port
+        try:
+            result = subprocess.check_output(f"lsof -i :{port} -sTCP:LISTEN -t", shell=True).decode().strip()
+            if result:
+                pid = result.split("\n")[0]
+                answer = input(f"Process {pid} is using port {port}. Kill it? [y/N]: ").strip().lower()
+                if answer == 'y':
+                    subprocess.run(["kill", "-9", pid])
+                    print(f"Killed process {pid} on port {port}.")
+                    time.sleep(1)
+                else:
+                    print("Exiting due to port conflict.")
+                    exit(1)
+        except Exception as e:
+            print(f"Could not determine process using port {port}: {e}")
+            exit(1)
+    # Now safe to initialize GPIO and start threads
     initialize_gpio(RELAYS)
     ensure_all_relays_off()
     # Clear any manual runs at startup
