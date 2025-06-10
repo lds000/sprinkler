@@ -217,6 +217,57 @@ def update_mist_status(is_misting, last_mist_event, next_mist_event, current_tem
 # Track last scheduled run for each start time (global)
 last_scheduled_run = {}
 
+# --- ADC SETUP FOR PRESSURE SENSOR ---
+try:
+    import spidev
+    spi = spidev.SpiDev()
+    spi.open(0, 0)  # bus 0, device 0
+    def read_adc(channel):
+        adc = spi.xfer2([1, (8 + channel) << 4, 0])
+        data = ((adc[1] & 3) << 8) + adc[2]
+        return data
+    def adc_to_voltage(adc_value, vref=5.0):
+        return (adc_value / 1023.0) * vref
+    def voltage_to_psi(voltage):
+        return (voltage - 0.5) * (100.0 / 4.0)
+except ImportError:
+    def read_adc(channel):
+        return 0
+    def adc_to_voltage(adc_value, vref=5.0):
+        return 0.0
+    def voltage_to_psi(voltage):
+        return 0.0
+
+# --- ENV DATA POSTING ---
+def post_env_data(set_name, flow, moisture_b):
+    adc_value = read_adc(0)  # Channel 0 for pressure sensor
+    voltage = adc_to_voltage(adc_value)
+    pressure = voltage_to_psi(voltage)
+    payload = {
+        "timestamp": datetime.now().isoformat(),
+        "set_name": set_name,
+        "pressure": pressure,
+        "flow": flow,
+        "moisture_b": moisture_b
+    }
+    try:
+        requests.post("http://127.0.0.1:5000/env-data", json=payload, timeout=2)
+    except Exception as e:
+        log(f"[ENV_DATA POST ERROR] {e}")
+
+# --- ENV HISTORY LOGGER THREAD ---
+def env_history_logger():
+    while True:
+        time.sleep(300)  # 5 minutes
+        set_name = CURRENT_RUN.get("Set") if CURRENT_RUN.get("Running") else None
+        flow = None  # Replace with actual flow reading if available
+        moisture_b = None  # Replace with actual moisture reading if available
+        post_env_data(set_name, flow, moisture_b)
+
+# --- REALTIME GUI POLLING (for documentation) ---
+# The GUI should poll /env-latest every second when a set or misters is running.
+# The GUI should poll /env-history every 5 minutes for historical data.
+
 def main_loop():
     global _last_test_mode, manual_set, soon_set
     log("[DEBUG] main_loop has started")
@@ -345,6 +396,7 @@ if __name__ == "__main__":
     time.sleep(2)
     threading.Thread(target=main_loop, daemon=True).start()
     threading.Thread(target=led_status_thread, daemon=True).start()
+    threading.Thread(target=env_history_logger, daemon=True).start()
     # Suppress Flask/Werkzeug request logs
     import logging as py_logging
     py_logging.getLogger('werkzeug').setLevel(py_logging.WARNING)

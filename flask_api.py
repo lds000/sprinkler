@@ -5,7 +5,7 @@ import os
 from scheduler import get_schedule_day_index, load_json
 from datetime import datetime, timedelta
 import time
-from logger import declare_log, log
+from logger import log
 from gpio_controller import get_led_colors
 import json
 
@@ -341,16 +341,38 @@ def soil_history():
     try:
         N = int(request.args.get("n", 100))  # Default: last 100 readings
         readings = []
+        skipped = 0
+        blank = 0
         with open(SOIL_LOG_PATH, "r") as f:
-            for line in f:
-                try:
-                    ts, json_part = line.split("|", 1)
-                    entry = {"timestamp": ts.strip(), **json.loads(json_part)}
-                    readings.append(entry)
-                except Exception:
-                    continue
-        return jsonify(readings[-N:])
+            lines = f.readlines()
+        total_lines = len(lines)
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                blank += 1
+                continue  # skip blank lines
+            try:
+                ts, json_part = line.split("|", 1)
+                entry = {"timestamp": ts.strip(), **json.loads(json_part)}
+                readings.append(entry)
+                if len(readings) >= N:
+                    break
+            except Exception as e:
+                skipped += 1
+                continue
+        resp = list(reversed(readings))  # Return in chronological order
+        # Debug log
+        if readings:
+            first_ts = resp[0]["timestamp"]
+            last_ts = resp[-1]["timestamp"]
+        else:
+            first_ts = last_ts = None
+        log(f"[SOIL_HISTORY DEBUG] lines={total_lines}, blank={blank}, skipped={skipped}, returned={len(resp)}, first_ts={first_ts}, last_ts={last_ts}")
+        if skipped > 0 or blank > 0:
+            return jsonify({"readings": resp, "skipped_lines": skipped, "blank_lines": blank}), 200
+        return jsonify(resp)
     except Exception as e:
+        log(f"[SOIL_HISTORY ERROR] {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/soil-data", methods=["POST"])
@@ -361,12 +383,82 @@ def soil_data():
         ts = data.get("timestamp", datetime.now().isoformat())
         with open(SOIL_LOG_PATH, "a") as f:
             f.write(f"{ts} | {json.dumps(data)}\n")
+            f.flush()
+            os.fsync(f.fileno())
         return jsonify({"status": "ok"}), 200
     except Exception as e:
         with open("error_log.txt", "a") as ef:
             ef.write(f"[SOIL-DATA ERROR] {datetime.now().isoformat()} - {str(e)}\n")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/env-data", methods=["POST"])
+def env_data():
+    try:
+        data = request.get_json(force=True)
+        # Expecting: timestamp, set_name, pressure, flow, moisture_b
+        ts = data.get("timestamp", datetime.now().isoformat())
+        with open("/home/lds00/sprinkler/env_readings.log", "a") as f:
+            f.write(f"{ts} | {json.dumps(data)}\n")
+            f.flush()
+            os.fsync(f.fileno())
+        return jsonify({"status": "ok"}), 200
+    except Exception as e:
+        log(f"[ENV_DATA ERROR] {datetime.now().isoformat()} - {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/env-history")
+def env_history():
+    try:
+        N = int(request.args.get("n", 100))
+        set_name = request.args.get("set_name")
+        readings = []
+        skipped = 0
+        blank = 0
+        with open("/home/lds00/sprinkler/env_readings.log", "r") as f:
+            lines = f.readlines()
+        for line in reversed(lines):
+            line = line.strip()
+            if not line:
+                blank += 1
+                continue
+            try:
+                ts, json_part = line.split("|", 1)
+                entry = {"timestamp": ts.strip(), **json.loads(json_part)}
+                if set_name and entry.get("set_name") != set_name:
+                    continue
+                readings.append(entry)
+                if len(readings) >= N:
+                    break
+            except Exception:
+                skipped += 1
+                continue
+        resp = list(reversed(readings))
+        return jsonify(resp)
+    except Exception as e:
+        log(f"[ENV_HISTORY ERROR] {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/env-latest")
+def env_latest():
+    try:
+        with open("/home/lds00/sprinkler/env_readings.log", "r") as f:
+            lines = f.readlines()
+            if not lines:
+                return jsonify({"error": "No env readings available."}), 404
+            for line in reversed(lines):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    ts, json_part = line.split("|", 1)
+                    entry = {"timestamp": ts.strip(), **json.loads(json_part)}
+                    return jsonify(entry)
+                except Exception:
+                    continue
+            return jsonify({"error": "No valid env readings found."}), 404
+    except Exception as e:
+        log(f"[ENV_LATEST ERROR] {str(e)}")
+        return jsonify({"error": str(e)}), 500
 def read_test_mode():
     try:
         with open(TEST_MODE_FILE) as f:
