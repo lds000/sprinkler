@@ -1,0 +1,110 @@
+Remote Sensor Node Setup and Data Reporting
+===========================================
+
+1. Hardware & GPIO Setup
+------------------------
+- Connect your sensors (e.g., TCS34725 color sensor, pressure sensor, flow sensor) to the Pi Zero’s GPIO pins as per each sensor’s datasheet.
+- For digital sensors (like a flow meter), connect the signal wire to a GPIO input pin (e.g., GPIO 22 for flow).
+- For I2C sensors (like TCS34725), connect SDA/SCL to the Pi’s I2C pins (GPIO 2/3).
+- For analog sensors (like pressure via MCP3008), connect SPI pins (MOSI, MISO, SCLK, CE0).
+
+Example for a flow meter:
+- Red: 5V
+- Black: GND
+- Yellow: GPIO 22 (input, with pull-up)
+
+Example for TCS34725:
+- VIN: 3.3V or 5V
+- GND: GND
+- SDA: GPIO 2 (SDA)
+- SCL: GPIO 3 (SCL)
+
+2. Sensor Reading Code (Python Example)
+---------------------------------------
+
+# For a color sensor (moisture via blue channel):
+import board
+import busio
+import adafruit_tcs34725
+import time
+from datetime import datetime
+
+i2c = busio.I2C(board.SCL, board.SDA)
+sensor = adafruit_tcs34725.TCS34725(i2c)
+
+def read_color(sensor):
+    # Optionally turn on an LED here
+    time.sleep(0.3)
+    r, g, b, c = sensor.color_raw
+    lux = sensor.lux
+    # Optionally turn off the LED here
+    return {
+        "timestamp": datetime.now().isoformat(),
+        "r": r,
+        "g": g,
+        "b": b,
+        "lux": lux
+    }
+
+# For a flow meter (pulse counting):
+import RPi.GPIO as GPIO
+import threading
+
+FLOW_SENSOR_PIN = 22
+FLOW_PULSES_PER_LITRE = 450
+
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(FLOW_SENSOR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+
+flow_pulse_count = 0
+flow_lock = threading.Lock()
+
+def flow_pulse_callback(channel):
+    global flow_pulse_count
+    with flow_lock:
+        flow_pulse_count += 1
+
+GPIO.add_event_detect(FLOW_SENSOR_PIN, GPIO.FALLING, callback=flow_pulse_callback)
+
+def get_and_reset_flow_litres():
+    global flow_pulse_count
+    with flow_lock:
+        pulses = flow_pulse_count
+        flow_pulse_count = 0
+    litres = pulses / FLOW_PULSES_PER_LITRE
+    return litres
+
+3. Averaging and Minimal Payload Construction
+--------------------------------------------
+readings = [read_color(sensor) for _ in range(5)]
+avg_b = sum(r["b"] for r in readings) / len(readings)
+payload = {
+    "timestamp": readings[0]["timestamp"],
+    "moisture": avg_b
+}
+
+4. HTTP POST to Main Controller
+-------------------------------
+import requests
+
+url = "http://<main-pi-ip>:5000/soil-data"  # or /env-data for pressure/flow
+try:
+    resp = requests.post(url, json=payload, timeout=2)
+    resp.raise_for_status()
+except Exception as e:
+    # Optionally queue payload for retry
+    print(f"POST failed: {e}")
+
+5. Logging and Reliability
+--------------------------
+- Log all readings and POST attempts to a local file for debugging.
+- If a POST fails, save the payload to a queue file and retry later.
+
+Summary
+-------
+- Sensors are connected to the Pi Zero’s GPIO/I2C/SPI pins.
+- Readings are taken, averaged if needed, and a minimal payload is constructed.
+- Payload is sent via HTTP POST to the main controller’s Flask API.
+- Main controller associates the reading with the current system state (zone, status, etc.) and logs it.
+
+You can copy/paste the code snippets above into your remote sensor node script as needed.

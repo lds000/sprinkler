@@ -12,7 +12,6 @@ def get_schedule_day_index():
     base = datetime(2023, 12, 31)  # Sunday
     today = datetime.now().date()
     idx = (today - base.date()).days % 14
-    print(f"[DEBUG] get_schedule_day_index: base={base.date()}, today={today}, idx={idx}")
     return idx
 
 def should_run_today(schedule):

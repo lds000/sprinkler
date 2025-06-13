@@ -5,15 +5,15 @@
       "isEnabled": true
     },
     {
-      "time": "15:25",
-      "isEnabled": true
+      "time": "15:25"
     }
   ],
   "sets": [
     {
       "set_name": "Hanging Pots",
       "run_duration_minutes": 7,
-      "pulse_duration_minutes": 1,
+      "zone_id": 1,
+      "pulse_duration_minutes": 155,
       "soak_duration_minutes": 1,
       "openPulseKeypadCommand": {},
       "openSoakKeypadCommand": {},
@@ -22,16 +22,18 @@
     },
     {
       "set_name": "Garden",
-      "run_duration_minutes": 10,
+      "run_duration_minutes": 9,
+      "zone_id": 2,
       "pulse_duration_minutes": 2,
       "soak_duration_minutes": 2,
       "openPulseKeypadCommand": {},
       "openSoakKeypadCommand": {},
       "mode": true,
-      "seasonallyAdjustedMinutes": 10
+      "seasonallyAdjustedMinutes": 9
     },
     {
       "set_name": "Misters",
+      "zone_id": 3,
       "openPulseKeypadCommand": {},
       "openSoakKeypadCommand": {},
       "mode": true
@@ -41,7 +43,7 @@
   "schedule_days": [
     true,
     true,
-    true,
+    false,
     true,
     true,
     true,

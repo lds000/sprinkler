@@ -1,3 +1,13 @@
+import os
+import signal
+import subprocess
+import sys
+
+# --- Kill any existing main.py or GPIO-using processes to avoid conflicts ---
+# (Removed per user request)
+
+print("[DEBUG] kill_conflicting_processes() complete. Continuing startup...")
+
 ### main.py
 
 import os
@@ -14,6 +24,7 @@ import logging
 from config import RELAYS
 import requests
 import json
+import RPi.GPIO as GPIO
 
 
 # NOTE: The Pi must NEVER write to test_mode.txt. This file is managed by the PC GUI only.
@@ -221,15 +232,24 @@ last_scheduled_run = {}
 try:
     import spidev
     spi = spidev.SpiDev()
-    spi.open(0, 0)  # bus 0, device 0
-    def read_adc(channel):
-        adc = spi.xfer2([1, (8 + channel) << 4, 0])
-        data = ((adc[1] & 3) << 8) + adc[2]
-        return data
-    def adc_to_voltage(adc_value, vref=5.0):
-        return (adc_value / 1023.0) * vref
-    def voltage_to_psi(voltage):
-        return (voltage - 0.5) * (100.0 / 4.0)
+    try:
+        spi.open(0, 0)  # bus 0, device 0
+        def read_adc(channel):
+            adc = spi.xfer2([1, (8 + channel) << 4, 0])
+            data = ((adc[1] & 3) << 8) + adc[2]
+            return data
+        def adc_to_voltage(adc_value, vref=5.0):
+            return (adc_value / 1023.0) * vref
+        def voltage_to_psi(voltage):
+            return (voltage - 0.5) * (100.0 / 4.0)
+    except Exception as e:
+        log(f"[WARN] SPI device unavailable or failed to open: {e}. Pressure readings will be zero.")
+        def read_adc(channel):
+            return 0
+        def adc_to_voltage(adc_value, vref=5.0):
+            return 0.0
+        def voltage_to_psi(voltage):
+            return 0.0
 except ImportError:
     def read_adc(channel):
         return 0
@@ -238,31 +258,181 @@ except ImportError:
     def voltage_to_psi(voltage):
         return 0.0
 
+# --- FLOW METER SETUP ---
+FLOW_SENSOR_PIN = 22  # Example GPIO pin, change as needed
+FLOW_PULSES_PER_LITRE = 450  # Typical for G1"; check your sensor's datasheet
+
+GPIO.setmode(GPIO.BCM)
+try:
+    GPIO.setup(FLOW_SENSOR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+except Exception as e:
+    print(f"[ERROR] Could not set up GPIO pin {FLOW_SENSOR_PIN}: {e}")
+    print("If you see 'GPIO busy', make sure no other sprinkler/main.py or GPIO-using process is running.\n" 
+          "Stop the systemd service with 'sudo systemctl stop sprinkler' and try again.")
+    sys.exit(1)
+
+flow_pulse_count = 0
+flow_lock = threading.Lock()
+
+def flow_pulse_callback(channel):
+    global flow_pulse_count
+    with flow_lock:
+        flow_pulse_count += 1
+
+GPIO.add_event_detect(FLOW_SENSOR_PIN, GPIO.FALLING, callback=flow_pulse_callback)
+
+def get_and_reset_flow_litres():
+    global flow_pulse_count
+    with flow_lock:
+        pulses = flow_pulse_count
+        flow_pulse_count = 0
+    litres = pulses / FLOW_PULSES_PER_LITRE
+    return litres
+
+def fetch_remote_flow():
+    try:
+        resp = requests.get("http://100.117.254.20:8000/env-latest", timeout=2)
+        data = resp.json()
+        # Return all relevant fields for downstream use
+        return {
+            "flow_litres": data.get("flow_litres"),
+            "flow_pulses": data.get("flow_pulses"),
+            "temperature": data.get("temperature"),
+            "humidity": data.get("humidity"),
+            "pressure_kpa": data.get("pressure_kpa"),
+            "moisture_b": data.get("moisture_b")
+        }
+    except Exception as e:
+        log(f"[REMOTE FLOW ERROR] {e}")
+        return {}
+
+def fetch_remote_moisture():
+    try:
+        resp = requests.get("http://100.117.254.20:8000/env-history", timeout=2)
+        data = resp.json()
+        # Assume the latest entry is last in the list
+        if isinstance(data, list) and data:
+            latest = data[-1]
+            return latest.get("moisture_b")
+        elif isinstance(data, dict):
+            return data.get("moisture_b")
+        else:
+            return None
+    except Exception as e:
+        log(f"[REMOTE MOISTURE ERROR] {e}")
+        return None
+
+# --- REMOTE SENSOR FETCHING (NEW ENDPOINTS) ---
+def fetch_remote_sets():
+    try:
+        resp = requests.get("http://100.117.254.20:8000/sets-latest", timeout=2)
+        data = resp.json()
+        return {
+            "flow_litres": data.get("flow_litres"),
+            "flow_pulses": data.get("flow_pulses"),
+            "pressure_kpa": data.get("pressure_kpa")
+        }
+    except Exception as e:
+        log(f"[REMOTE SETS ERROR] {e}")
+        return {}
+
+def fetch_remote_plant():
+    try:
+        resp = requests.get("http://100.117.254.20:8000/plant-latest", timeout=2)
+        data = resp.json()
+        return {
+            "moisture": data.get("moisture"),
+            "lux": data.get("lux"),
+            "soil_temperature": data.get("soil_temperature")
+        }
+    except Exception as e:
+        log(f"[REMOTE PLANT ERROR] {e}")
+        return {}
+
+def fetch_remote_environment():
+    try:
+        resp = requests.get("http://100.117.254.20:8000/environment-latest", timeout=2)
+        data = resp.json()
+        return {
+            "temperature": data.get("temperature"),
+            "humidity": data.get("humidity"),
+            "wind_speed": data.get("wind_speed"),
+            "barometric_pressure": data.get("barometric_pressure")
+        }
+    except Exception as e:
+        log(f"[REMOTE ENV ERROR] {e}")
+        return {}
+
 # --- ENV DATA POSTING ---
 def post_env_data(set_name, flow, moisture_b):
-    adc_value = read_adc(0)  # Channel 0 for pressure sensor
+    adc_value = read_adc(0)  # Channel 0 for pressure sensor (local only)
     voltage = adc_to_voltage(adc_value)
     pressure = voltage_to_psi(voltage)
+    # --- Use new remote endpoints ---
+    sets = fetch_remote_sets()
+    plant = fetch_remote_plant()
+    env = fetch_remote_environment()
+    # Use remote values if available, else fallback to passed-in or None
+    flow_litres = sets.get("flow_litres") if sets.get("flow_litres") is not None else flow
+    flow_lpm = flow_litres * 60 if flow_litres is not None else None
+    # Compose payload for GUI/API
     payload = {
         "timestamp": datetime.now().isoformat(),
         "set_name": set_name,
-        "pressure": pressure,
-        "flow": flow,
-        "moisture_b": moisture_b
+        "pressure": pressure,  # Local pressure sensor (psi)
+        "flow": flow_lpm,
+        "moisture_b": plant.get("moisture") if plant.get("moisture") is not None else moisture_b
     }
+    # Add all new fields if present
+    for d in (sets, plant, env):
+        for k, v in d.items():
+            if v is not None:
+                payload[k] = v
     try:
         requests.post("http://127.0.0.1:5000/env-data", json=payload, timeout=2)
     except Exception as e:
         log(f"[ENV_DATA POST ERROR] {e}")
+
+# --- POST REMOTE DATA TO GUI/API AS SEPARATE PAYLOADS ---
+def post_all_env_data(set_name=None):
+    adc_value = read_adc(0)  # Channel 0 for pressure sensor (local only)
+    voltage = adc_to_voltage(adc_value)
+    pressure = voltage_to_psi(voltage)
+    # Fetch all remote data
+    sets = fetch_remote_sets()
+    plant = fetch_remote_plant()
+    env = fetch_remote_environment()
+    # Add set_name and local pressure to sets payload
+    if sets is not None:
+        sets_payload = dict(sets)
+        sets_payload["timestamp"] = datetime.now().isoformat()
+        sets_payload["set_name"] = set_name
+        sets_payload["pressure"] = pressure  # Local pressure sensor (psi)
+        try:
+            requests.post("http://127.0.0.1:5000/sets-data", json=sets_payload, timeout=2)
+        except Exception as e:
+            log(f"[SETS_DATA POST ERROR] {e}")
+    if plant is not None:
+        plant_payload = dict(plant)
+        plant_payload["timestamp"] = datetime.now().isoformat()
+        try:
+            requests.post("http://127.0.0.1:5000/plant-data", json=plant_payload, timeout=2)
+        except Exception as e:
+            log(f"[PLANT_DATA POST ERROR] {e}")
+    if env is not None:
+        env_payload = dict(env)
+        env_payload["timestamp"] = datetime.now().isoformat()
+        try:
+            requests.post("http://127.0.0.1:5000/environment-data", json=env_payload, timeout=2)
+        except Exception as e:
+            log(f"[ENVIRONMENT_DATA POST ERROR] {e}")
 
 # --- ENV HISTORY LOGGER THREAD ---
 def env_history_logger():
     while True:
         time.sleep(300)  # 5 minutes
         set_name = CURRENT_RUN.get("Set") if CURRENT_RUN.get("Running") else None
-        flow = None  # Replace with actual flow reading if available
-        moisture_b = None  # Replace with actual moisture reading if available
-        post_env_data(set_name, flow, moisture_b)
+        post_all_env_data(set_name)
 
 # --- REALTIME GUI POLLING (for documentation) ---
 # The GUI should poll /env-latest every second when a set or misters is running.
@@ -357,31 +527,6 @@ def led_status_thread():
         time.sleep(0.1)
 
 if __name__ == "__main__":
-    # --- Port 5000 check and prompt (move to very top) ---
-    import socket
-    import subprocess
-    def is_port_in_use(port):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            return s.connect_ex(("127.0.0.1", port)) == 0
-    port = 5000
-    if is_port_in_use(port):
-        print(f"Port {port} is already in use.")
-        # Find the process using the port
-        try:
-            result = subprocess.check_output(f"lsof -i :{port} -sTCP:LISTEN -t", shell=True).decode().strip()
-            if result:
-                pid = result.split("\n")[0]
-                answer = input(f"Process {pid} is using port {port}. Kill it? [y/N]: ").strip().lower()
-                if answer == 'y':
-                    subprocess.run(["kill", "-9", pid])
-                    print(f"Killed process {pid} on port {port}.")
-                    time.sleep(1)
-                else:
-                    print("Exiting due to port conflict.")
-                    exit(1)
-        except Exception as e:
-            print(f"Could not determine process using port {port}: {e}")
-            exit(1)
     # Now safe to initialize GPIO and start threads
     initialize_gpio(RELAYS)
     ensure_all_relays_off()
@@ -400,4 +545,20 @@ if __name__ == "__main__":
     # Suppress Flask/Werkzeug request logs
     import logging as py_logging
     py_logging.getLogger('werkzeug').setLevel(py_logging.WARNING)
-    app.run(host="0.0.0.0", port=5000)
+    # DO NOT run Flask server here. Run it separately using flask_api.py
+    log("[INFO] main.py started without running Flask server. Start flask_api.py separately for API endpoints.")
+
+import signal
+import sys
+
+def handle_sigterm(signum, frame):
+    print(f"[DEBUG] Received signal {signum}. Exiting.")
+    try:
+        GPIO.cleanup()
+        print("[DEBUG] GPIO cleaned up.")
+    except Exception as e:
+        print(f"[WARN] GPIO cleanup failed: {e}")
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, handle_sigterm)
+signal.signal(signal.SIGINT, handle_sigterm)

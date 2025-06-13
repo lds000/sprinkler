@@ -1,0 +1,38 @@
+```json
+// Example payloads for GUI/API integration
+//
+// Each payload below is sent as a separate POST request to its respective endpoint.
+//
+// 1. Sets Data
+//    Endpoint: POST /sets-data
+//    Description: Contains flow, pressure, and set information. Includes local pressure sensor (psi).
+{
+  "timestamp": "2025-06-11T14:23:45.123456",
+  "set_name": "FrontYard",
+  "pressure": 42.1,
+  "flow_litres": 0.093,
+  "flow_pulses": 42,
+  "pressure_kpa": 101.3
+}
+
+// 2. Plant Data
+//    Endpoint: POST /plant-data
+//    Description: Contains plant sensor data such as soil moisture, light (lux), and soil temperature.
+{
+  "timestamp": "2025-06-11T14:23:45.123456",
+  "moisture": 123.4,
+  "lux": 456.7,
+  "soil_temperature": 22.5
+}
+
+// 3. Environment Data
+//    Endpoint: POST /environment-data
+//    Description: Contains environmental sensor data such as air temperature, humidity, wind speed, and barometric pressure.
+{
+  "timestamp": "2025-06-11T14:23:45.123456",
+  "temperature": 24.1,
+  "humidity": 55.2,
+  "wind_speed": 3.7,
+  "barometric_pressure": 1008.2
+}
+```
