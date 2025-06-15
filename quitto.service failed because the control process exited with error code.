@@ -1,0 +1,288 @@
+Jun 13 10:56:27 raspberrypi systemd[1]: Starting mosquitto.service - Mosquitto MQTT Broker...
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has begun execution[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has begun execution.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 675857.[0m
+Jun 13 10:56:27 raspberrypi systemd[1]: Started mosquitto.service - Mosquitto MQTT Broker.
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has finished successfully[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has finished successfully.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 675857.[0m
+Jun 13 11:20:12 raspberrypi systemd[1]: Stopping mosquitto.service - Mosquitto MQTT Broker...
+[0;38;5;245m░░ [0m[0;32mSubject: A stop job for unit mosquitto.service has begun execution[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA stop job for unit mosquitto.service has begun execution.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 675935.[0m
+Jun 13 11:20:12 raspberrypi systemd[1]: mosquitto.service: Deactivated successfully.
+[0;38;5;245m░░ [0m[0;32mSubject: Unit succeeded[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe unit mosquitto.service has successfully entered the 'dead' state.[0m
+Jun 13 11:20:12 raspberrypi systemd[1]: Stopped mosquitto.service - Mosquitto MQTT Broker.
+[0;38;5;245m░░ [0m[0;32mSubject: A stop job for unit mosquitto.service has finished[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA stop job for unit mosquitto.service has finished.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 675935 and the job result is done.[0m
+Jun 13 11:20:12 raspberrypi systemd[1]: Starting mosquitto.service - Mosquitto MQTT Broker...
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has begun execution[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has begun execution.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 675935.[0m
+Jun 13 11:20:12 raspberrypi mosquitto[947329]: 1749835212: Error: Empty password_file value in configuration.
+Jun 13 11:20:12 raspberrypi mosquitto[947329]: 1749835212: Error found at /etc/mosquitto/mosquitto.conf:9.
+Jun 13 11:20:12 raspberrypi systemd[1]: [0;1;39m[0;1;31m[0;1;39mmosquitto.service: Main process exited, code=exited, status=3/NOTIMPLEMENTED[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit process exited[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mAn ExecStart= process belonging to unit mosquitto.service has exited.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe process' exit code is 'exited' and its exit status is 3.[0m
+Jun 13 11:20:12 raspberrypi systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mmosquitto.service: Failed with result 'exit-code'.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe unit mosquitto.service has entered the 'failed' state with result 'exit-code'.[0m
+Jun 13 11:20:12 raspberrypi systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start mosquitto.service - Mosquitto MQTT Broker.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has finished with a failure.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 675935 and the job result is failed.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: mosquitto.service: Scheduled restart job, restart counter is at 1.
+[0;38;5;245m░░ [0m[0;32mSubject: Automatic restarting of a unit has been scheduled[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mAutomatic restarting of the unit mosquitto.service has been scheduled, as the result for[0m
+[0;38;5;245m░░[0m [0;32mthe configured Restart= setting for the unit.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: Stopped mosquitto.service - Mosquitto MQTT Broker.
+[0;38;5;245m░░ [0m[0;32mSubject: A stop job for unit mosquitto.service has finished[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA stop job for unit mosquitto.service has finished.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676013 and the job result is done.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: Starting mosquitto.service - Mosquitto MQTT Broker...
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has begun execution[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has begun execution.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676013.[0m
+Jun 13 11:20:13 raspberrypi mosquitto[947335]: 1749835213: Error: Empty password_file value in configuration.
+Jun 13 11:20:13 raspberrypi mosquitto[947335]: 1749835213: Error found at /etc/mosquitto/mosquitto.conf:9.
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;39m[0;1;31m[0;1;39mmosquitto.service: Main process exited, code=exited, status=3/NOTIMPLEMENTED[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit process exited[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mAn ExecStart= process belonging to unit mosquitto.service has exited.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe process' exit code is 'exited' and its exit status is 3.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mmosquitto.service: Failed with result 'exit-code'.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe unit mosquitto.service has entered the 'failed' state with result 'exit-code'.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start mosquitto.service - Mosquitto MQTT Broker.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has finished with a failure.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676013 and the job result is failed.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: mosquitto.service: Scheduled restart job, restart counter is at 2.
+[0;38;5;245m░░ [0m[0;32mSubject: Automatic restarting of a unit has been scheduled[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mAutomatic restarting of the unit mosquitto.service has been scheduled, as the result for[0m
+[0;38;5;245m░░[0m [0;32mthe configured Restart= setting for the unit.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: Stopped mosquitto.service - Mosquitto MQTT Broker.
+[0;38;5;245m░░ [0m[0;32mSubject: A stop job for unit mosquitto.service has finished[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA stop job for unit mosquitto.service has finished.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676091 and the job result is done.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: Starting mosquitto.service - Mosquitto MQTT Broker...
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has begun execution[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has begun execution.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676091.[0m
+Jun 13 11:20:13 raspberrypi mosquitto[947340]: 1749835213: Error: Empty password_file value in configuration.
+Jun 13 11:20:13 raspberrypi mosquitto[947340]: 1749835213: Error found at /etc/mosquitto/mosquitto.conf:9.
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;39m[0;1;31m[0;1;39mmosquitto.service: Main process exited, code=exited, status=3/NOTIMPLEMENTED[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit process exited[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mAn ExecStart= process belonging to unit mosquitto.service has exited.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe process' exit code is 'exited' and its exit status is 3.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mmosquitto.service: Failed with result 'exit-code'.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe unit mosquitto.service has entered the 'failed' state with result 'exit-code'.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start mosquitto.service - Mosquitto MQTT Broker.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has finished with a failure.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676091 and the job result is failed.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: mosquitto.service: Scheduled restart job, restart counter is at 3.
+[0;38;5;245m░░ [0m[0;32mSubject: Automatic restarting of a unit has been scheduled[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mAutomatic restarting of the unit mosquitto.service has been scheduled, as the result for[0m
+[0;38;5;245m░░[0m [0;32mthe configured Restart= setting for the unit.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: Stopped mosquitto.service - Mosquitto MQTT Broker.
+[0;38;5;245m░░ [0m[0;32mSubject: A stop job for unit mosquitto.service has finished[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA stop job for unit mosquitto.service has finished.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676169 and the job result is done.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: Starting mosquitto.service - Mosquitto MQTT Broker...
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has begun execution[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has begun execution.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676169.[0m
+Jun 13 11:20:13 raspberrypi mosquitto[947350]: 1749835213: Error: Empty password_file value in configuration.
+Jun 13 11:20:13 raspberrypi mosquitto[947350]: 1749835213: Error found at /etc/mosquitto/mosquitto.conf:9.
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;39m[0;1;31m[0;1;39mmosquitto.service: Main process exited, code=exited, status=3/NOTIMPLEMENTED[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit process exited[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mAn ExecStart= process belonging to unit mosquitto.service has exited.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe process' exit code is 'exited' and its exit status is 3.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mmosquitto.service: Failed with result 'exit-code'.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe unit mosquitto.service has entered the 'failed' state with result 'exit-code'.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start mosquitto.service - Mosquitto MQTT Broker.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has finished with a failure.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676169 and the job result is failed.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: mosquitto.service: Scheduled restart job, restart counter is at 4.
+[0;38;5;245m░░ [0m[0;32mSubject: Automatic restarting of a unit has been scheduled[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mAutomatic restarting of the unit mosquitto.service has been scheduled, as the result for[0m
+[0;38;5;245m░░[0m [0;32mthe configured Restart= setting for the unit.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: Stopped mosquitto.service - Mosquitto MQTT Broker.
+[0;38;5;245m░░ [0m[0;32mSubject: A stop job for unit mosquitto.service has finished[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA stop job for unit mosquitto.service has finished.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676247 and the job result is done.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: Starting mosquitto.service - Mosquitto MQTT Broker...
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has begun execution[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has begun execution.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676247.[0m
+Jun 13 11:20:13 raspberrypi mosquitto[947363]: 1749835213: Error: Empty password_file value in configuration.
+Jun 13 11:20:13 raspberrypi mosquitto[947363]: 1749835213: Error found at /etc/mosquitto/mosquitto.conf:9.
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;39m[0;1;31m[0;1;39mmosquitto.service: Main process exited, code=exited, status=3/NOTIMPLEMENTED[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit process exited[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mAn ExecStart= process belonging to unit mosquitto.service has exited.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe process' exit code is 'exited' and its exit status is 3.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mmosquitto.service: Failed with result 'exit-code'.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe unit mosquitto.service has entered the 'failed' state with result 'exit-code'.[0m
+Jun 13 11:20:13 raspberrypi systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start mosquitto.service - Mosquitto MQTT Broker.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has finished with a failure.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676247 and the job result is failed.[0m
+Jun 13 11:20:14 raspberrypi systemd[1]: mosquitto.service: Scheduled restart job, restart counter is at 5.
+[0;38;5;245m░░ [0m[0;32mSubject: Automatic restarting of a unit has been scheduled[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mAutomatic restarting of the unit mosquitto.service has been scheduled, as the result for[0m
+[0;38;5;245m░░[0m [0;32mthe configured Restart= setting for the unit.[0m
+Jun 13 11:20:14 raspberrypi systemd[1]: Stopped mosquitto.service - Mosquitto MQTT Broker.
+[0;38;5;245m░░ [0m[0;32mSubject: A stop job for unit mosquitto.service has finished[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA stop job for unit mosquitto.service has finished.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676325 and the job result is done.[0m
+Jun 13 11:20:14 raspberrypi systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mmosquitto.service: Start request repeated too quickly.[0m
+Jun 13 11:20:14 raspberrypi systemd[1]: [0;1;38;5;185m[0;1;39m[0;1;38;5;185mmosquitto.service: Failed with result 'exit-code'.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: Unit failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe unit mosquitto.service has entered the 'failed' state with result 'exit-code'.[0m
+Jun 13 11:20:14 raspberrypi systemd[1]: [0;1;31m[0;1;39m[0;1;31mFailed to start mosquitto.service - Mosquitto MQTT Broker.[0m
+[0;38;5;245m░░ [0m[0;32mSubject: A start job for unit mosquitto.service has failed[0m
+[0;38;5;245m░░[0m [0;32mDefined-By: systemd[0m
+[0;38;5;245m░░[0m [0;32mSupport: https://www.debian.org/support[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mA start job for unit mosquitto.service has finished with a failure.[0m
+[0;38;5;245m░░[0m [0;32m[0m
+[0;38;5;245m░░[0m [0;32mThe job identifier is 676325 and the job result is failed.[0m

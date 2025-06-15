@@ -1,0 +1,75 @@
+Pi Zero (Sensor Pi) - System Summary
+====================================
+
+Purpose & Role:
+---------------
+- The Pi Zero acts as a remote sensor node for the sprinkler system.
+- Its main function is to collect real-time environmental and irrigation data (flow, wind, temperature, humidity, color/lux, soil moisture) and publish it to the MQTT broker for use by the main controller and WPF client.
+- It does not control relays or manage schedules; it is dedicated to sensor data acquisition and reporting.
+
+Hardware Details:
+-----------------
+- **GPIO Usage:**
+  - Flow Sensor: GPIO 25 (BCM), physical pin 22
+  - Wind Speed Sensor: GPIO 13 (BCM), physical pin 33 (external 10kΩ pull-up required)
+  - Color Sensor (TCS34725): I2C SCL (GPIO 22, pin 3), SDA (GPIO 27, pin 13)
+  - Temperature/Humidity (DHT22): GPIO 4 (BCM), pin 7 (external 10kΩ pull-up recommended)
+  - (Optional) Pressure Sensor: via ADC (e.g., MCP3008)
+- **No relays or LEDs are controlled by the Pi Zero.**
+- **Wiring/Safety:**
+  - All sensors must be 3.3V logic compatible.
+  - Use external pull-ups for mechanical sensors.
+  - Confirm I2C devices with `i2cdetect -y 1` before running code.
+
+Software Architecture:
+----------------------
+- **Main script:** `SensorMonitor.py` (polls all sensors, handles MQTT publishing, error logging)
+- **Systemd service:**
+  - Configured to auto-start `SensorMonitor.py` on boot and restart on failure.
+  - Example unit file:
+    [Unit]
+    Description=Pi Zero Sensor Monitor
+    After=network.target
+    [Service]
+    ExecStart=/usr/bin/python3 /home/pi/SensorMonitor.py
+    Restart=always
+    [Install]
+    WantedBy=multi-user.target
+
+MQTT Usage:
+-----------
+- **Publishes to topics:**
+  - `sensors/sets` (flow, pressure) every 1 second
+  - `sensors/environment` (temperature, humidity, wind speed, barometric pressure) every 1 second
+  - `sensors/plant` (color, lux, moisture, soil temp) every 5 minutes
+- **Message format:** JSON, e.g.:
+  {
+    "timestamp": "2025-06-15T12:00:00.000000",
+    "flow_pulses": 12,
+    "flow_litres": 0.026,
+    "pressure_kpa": null
+  }
+- **Does not subscribe to any topics by default.**
+
+API Endpoints:
+--------------
+- **No HTTP API endpoints are exposed by default.**
+- All data is sent via MQTT only.
+
+Error Handling:
+---------------
+- Errors are logged locally (e.g., to `error_log.txt` or printed to console).
+- Sensor read failures are logged but do not stop the main loop; the system continues polling.
+- MQTT connection errors are logged and retried.
+
+Security:
+---------
+- **MQTT:** No authentication or TLS by default (can be enabled in broker and client config).
+- **API:** No HTTP API, so no API authentication.
+- **SFTP:** Not used by default.
+
+Extensibility:
+--------------
+- To add new sensors: update wiring, add code to `SensorMonitor.py` to poll the new sensor and publish to a new or existing MQTT topic.
+- To add new MQTT topics: extend the publish logic in `SensorMonitor.py`.
+- To add cloud integration: add code to forward MQTT data to cloud services or call external APIs as needed.

@@ -1,0 +1,70 @@
+Pi Zero (Sensor Pi) - Integration, Security, and Best Practices
+==============================================================
+
+1. Custom Authentication or Security Requirements
+------------------------------------------------
+- MQTT:
+  - By default, publishes to broker at 100.116.147.6:1883 with no authentication (anonymous access).
+  - To enable authentication, configure Mosquitto on the broker Pi to require username/password, and update the Pi Zero’s code:
+    mqtt_client.username_pw_set("username", "password")
+  - No TLS/SSL by default, but can be added for secure deployments.
+- SFTP:
+  - Not used by default for sensor data. If needed, use SSH key-based authentication.
+- API:
+  - Pi Zero does not expose an HTTP API by default; only publishes to MQTT.
+
+2. Additional MQTT Topics or Message Formats
+--------------------------------------------
+- Default topics:
+  - sensors/sets (flow, pressure)
+  - sensors/environment (temperature, humidity, wind speed, barometric pressure)
+  - sensors/plant (color, lux, moisture, soil temp)
+- Message format:
+  - All payloads are JSON, with a timestamp and relevant sensor fields.
+- Custom topics:
+  - You can add more topics (e.g., sensors/soil, sensors/errors) by extending the code.
+- Retained messages:
+  - By default, messages are not retained. Add retain=True to mqtt_client.publish() if you want the broker to store the last value.
+
+3. Special Startup/Shutdown, Failover, or Recovery Logic
+--------------------------------------------------------
+- Startup:
+  - Main script is designed to run as a systemd service for auto-restart and reliability.
+  - If the script crashes, systemd will restart it.
+- Shutdown:
+  - On shutdown, the script should clean up GPIO (using GPIO.cleanup()).
+- Failover:
+  - No built-in MQTT broker failover. If the broker is unreachable, the script will log errors and retry.
+- Recovery:
+  - If a sensor read fails, the script logs the error and continues polling.
+
+4. Hardware Quirks, Limitations, or Required Workarounds
+--------------------------------------------------------
+- GPIO:
+  - Only one process can access a GPIO pin at a time.
+  - Use external pull-up resistors for mechanical sensors (wind, DHT22).
+- Voltage:
+  - All sensor signals must be 3.3V logic for Pi Zero compatibility.
+  - If using 5V sensors, use a voltage divider or logic level shifter.
+- I2C:
+  - Confirm I2C devices are detected with i2cdetect -y 1 before running code.
+- Wind sensor:
+  - Some anemometers require polling, not interrupts.
+- Systemd:
+  - Use systemd for reliable autostart and recovery.
+
+5. Integration with Cloud Services or External APIs
+---------------------------------------------------
+- Default:
+  - Pi Zero does not integrate with any cloud services out of the box.
+- Extending:
+  - You can add code to forward MQTT data to cloud platforms (e.g., AWS IoT, Azure IoT, Adafruit IO) or to call external APIs as needed.
+
+6. User Roles, Permissions, or Multi-User Logic in the WPF Client
+-----------------------------------------------------------------
+- WPF Client:
+  - No user roles or permissions are enforced by the Pi Zero or its MQTT topics.
+  - Any client with network access and MQTT credentials (if enabled) can subscribe to sensor data.
+  - If you need role-based access, implement it in the WPF client or broker configuration.
+
+If you want to enable any of these features (e.g., MQTT authentication, TLS, cloud integration, or more robust failover), see project documentation or request code/configuration examples.

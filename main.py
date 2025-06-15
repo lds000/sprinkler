@@ -1,7 +1,22 @@
 import os
-import signal
-import subprocess
 import sys
+import time
+import traceback
+import paho.mqtt.client as mqtt
+from datetime import datetime
+
+ERROR_LOG_FILE = "/home/lds00/sprinkler/error_log.txt"
+
+def log_error(msg, exc=None, extra=None):
+    try:
+        with open(ERROR_LOG_FILE, "a") as ef:
+            ef.write(f"[{datetime.now().isoformat()}] {msg}\n")
+            if exc:
+                ef.write(traceback.format_exc())
+            if extra:
+                ef.write(f"\n--- EXTRA DEBUG INFO ---\n{extra}\n")
+    except Exception as e:
+        print(f"[FATAL] Could not write to error_log.txt: {e}")
 
 # --- Kill any existing main.py or GPIO-using processes to avoid conflicts ---
 # (Removed per user request)
@@ -13,7 +28,7 @@ print("[DEBUG] kill_conflicting_processes() complete. Continuing startup...")
 import os
 import time
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from scheduler import load_json, should_run_today, is_start_time_enabled
 from gpio_controller import initialize_gpio, status_led_controller, turn_off
 from flask_api import app, manual_set, soon_set
@@ -33,6 +48,7 @@ MANUAL_COMMAND_FILE = "/home/lds00/sprinkler/manual_command.json"
 LOG_FILE = "/home/lds00/sprinkler/watering_history.log"
 TEST_MODE_FILE = "/home/lds00/sprinkler/test_mode.txt"
 MIST_STATUS_FILE = "/home/lds00/sprinkler/mist_status.json"
+ERROR_LOG_FILE = "/home/lds00/sprinkler/error_log.txt"
 
 DEBUG_VERBOSE = os.getenv("DEBUG_VERBOSE", "0") == "1"
 _last_test_mode = None  # for change detection
@@ -80,7 +96,6 @@ def mist_manager(schedule):
         log("[MIST] Skipping misting because temperature is unavailable.")
         return
     now = time.time()
-    from datetime import datetime, timedelta
     # Find the highest temp threshold that applies
     active_setting = None
     for setting in sorted(mist_settings, key=lambda s: s.get("temperature", 0), reverse=True):
@@ -262,13 +277,29 @@ except ImportError:
 FLOW_SENSOR_PIN = 22  # Example GPIO pin, change as needed
 FLOW_PULSES_PER_LITRE = 450  # Typical for G1"; check your sensor's datasheet
 
+import RPi.GPIO as GPIO
 GPIO.setmode(GPIO.BCM)
 try:
     GPIO.setup(FLOW_SENSOR_PIN, GPIO.IN, pull_up_down=GPIO.PUD_UP)
 except Exception as e:
+    # Gather extra debug info
+    import subprocess
+    lsof_out = ""
+    ps_out = ""
+    try:
+        lsof_out = subprocess.check_output(["lsof", "/dev/gpiomem"]).decode()
+    except Exception as lsof_e:
+        lsof_out = f"lsof failed: {lsof_e}"
+    try:
+        ps_out = subprocess.check_output(["ps", "aux"]).decode()
+    except Exception as ps_e:
+        ps_out = f"ps aux failed: {ps_e}"
+    extra = f"lsof /dev/gpiomem:\n{lsof_out}\n\nps aux:\n{ps_out}"
+    log_error(f"[ERROR] Could not set up GPIO pin {FLOW_SENSOR_PIN}: {e}", exc=e, extra=extra)
     print(f"[ERROR] Could not set up GPIO pin {FLOW_SENSOR_PIN}: {e}")
     print("If you see 'GPIO busy', make sure no other sprinkler/main.py or GPIO-using process is running.\n" 
           "Stop the systemd service with 'sudo systemctl stop sprinkler' and try again.")
+    print("Extra debug info written to error_log.txt.")
     sys.exit(1)
 
 flow_pulse_count = 0
@@ -325,8 +356,10 @@ def fetch_remote_moisture():
 # --- REMOTE SENSOR FETCHING (NEW ENDPOINTS) ---
 def fetch_remote_sets():
     try:
+        print("[DEBUG] Fetching remote sets data...")
         resp = requests.get("http://100.117.254.20:8000/sets-latest", timeout=2)
         data = resp.json()
+        print(f"[DEBUG] Received sets data: {data}")
         return {
             "flow_litres": data.get("flow_litres"),
             "flow_pulses": data.get("flow_pulses"),
@@ -334,12 +367,15 @@ def fetch_remote_sets():
         }
     except Exception as e:
         log(f"[REMOTE SETS ERROR] {e}")
+        print(f"[ERROR] Failed to fetch remote sets: {e}")
         return {}
 
 def fetch_remote_plant():
     try:
+        print("[DEBUG] Fetching remote plant data...")
         resp = requests.get("http://100.117.254.20:8000/plant-latest", timeout=2)
         data = resp.json()
+        print(f"[DEBUG] Received plant data: {data}")
         return {
             "moisture": data.get("moisture"),
             "lux": data.get("lux"),
@@ -347,12 +383,15 @@ def fetch_remote_plant():
         }
     except Exception as e:
         log(f"[REMOTE PLANT ERROR] {e}")
+        print(f"[ERROR] Failed to fetch remote plant: {e}")
         return {}
 
 def fetch_remote_environment():
     try:
+        print("[DEBUG] Fetching remote environment data...")
         resp = requests.get("http://100.117.254.20:8000/environment-latest", timeout=2)
         data = resp.json()
+        print(f"[DEBUG] Received environment data: {data}")
         return {
             "temperature": data.get("temperature"),
             "humidity": data.get("humidity"),
@@ -361,6 +400,7 @@ def fetch_remote_environment():
         }
     except Exception as e:
         log(f"[REMOTE ENV ERROR] {e}")
+        print(f"[ERROR] Failed to fetch remote environment: {e}")
         return {}
 
 # --- ENV DATA POSTING ---
@@ -368,78 +408,146 @@ def post_env_data(set_name, flow, moisture_b):
     adc_value = read_adc(0)  # Channel 0 for pressure sensor (local only)
     voltage = adc_to_voltage(adc_value)
     pressure = voltage_to_psi(voltage)
-    # --- Use new remote endpoints ---
     sets = fetch_remote_sets()
     plant = fetch_remote_plant()
     env = fetch_remote_environment()
-    # Use remote values if available, else fallback to passed-in or None
     flow_litres = sets.get("flow_litres") if sets.get("flow_litres") is not None else flow
     flow_lpm = flow_litres * 60 if flow_litres is not None else None
-    # Compose payload for GUI/API
     payload = {
         "timestamp": datetime.now().isoformat(),
         "set_name": set_name,
-        "pressure": pressure,  # Local pressure sensor (psi)
+        "pressure": pressure,
         "flow": flow_lpm,
         "moisture_b": plant.get("moisture") if plant.get("moisture") is not None else moisture_b
     }
-    # Add all new fields if present
     for d in (sets, plant, env):
         for k, v in d.items():
             if v is not None:
                 payload[k] = v
     try:
+        print(f"[DEBUG] Sending env data: {payload}")
         requests.post("http://127.0.0.1:5000/env-data", json=payload, timeout=2)
+        print("[DEBUG] Env data sent successfully.")
     except Exception as e:
         log(f"[ENV_DATA POST ERROR] {e}")
+        print(f"[ERROR] Failed to send env data: {e}")
 
 # --- POST REMOTE DATA TO GUI/API AS SEPARATE PAYLOADS ---
 def post_all_env_data(set_name=None):
-    adc_value = read_adc(0)  # Channel 0 for pressure sensor (local only)
+    adc_value = read_adc(0)
     voltage = adc_to_voltage(adc_value)
     pressure = voltage_to_psi(voltage)
-    # Fetch all remote data
     sets = fetch_remote_sets()
     plant = fetch_remote_plant()
     env = fetch_remote_environment()
-    # Add set_name and local pressure to sets payload
     if sets is not None:
         sets_payload = dict(sets)
         sets_payload["timestamp"] = datetime.now().isoformat()
         sets_payload["set_name"] = set_name
-        sets_payload["pressure"] = pressure  # Local pressure sensor (psi)
+        sets_payload["pressure"] = pressure
         try:
+            print(f"[DEBUG] Sending sets data: {sets_payload}")
             requests.post("http://127.0.0.1:5000/sets-data", json=sets_payload, timeout=2)
+            print("[DEBUG] Sets data sent successfully.")
         except Exception as e:
             log(f"[SETS_DATA POST ERROR] {e}")
+            print(f"[ERROR] Failed to send sets data: {e}")
     if plant is not None:
         plant_payload = dict(plant)
         plant_payload["timestamp"] = datetime.now().isoformat()
         try:
+            print(f"[DEBUG] Sending plant data: {plant_payload}")
             requests.post("http://127.0.0.1:5000/plant-data", json=plant_payload, timeout=2)
+            print("[DEBUG] Plant data sent successfully.")
         except Exception as e:
             log(f"[PLANT_DATA POST ERROR] {e}")
+            print(f"[ERROR] Failed to send plant data: {e}")
     if env is not None:
         env_payload = dict(env)
         env_payload["timestamp"] = datetime.now().isoformat()
         try:
+            print(f"[DEBUG] Sending environment data: {env_payload}")
             requests.post("http://127.0.0.1:5000/environment-data", json=env_payload, timeout=2)
+            print("[DEBUG] Environment data sent successfully.")
         except Exception as e:
             log(f"[ENVIRONMENT_DATA POST ERROR] {e}")
+            print(f"[ERROR] Failed to send environment data: {e}")
 
-# --- ENV HISTORY LOGGER THREAD ---
+# --- MQTT SETUP FOR STATUS PUBLISHING ---
+MQTT_BROKER = 'localhost'
+MQTT_PORT = 1883
+MQTT_TOPIC_STATUS = 'status/watering'
+
+mqtt_client = mqtt.Client()
+
+try:
+    mqtt_client.connect(MQTT_BROKER, MQTT_PORT, 60)
+    mqtt_client.loop_start()
+    log('[INFO] Connected to MQTT broker for status publishing.')
+except Exception as e:
+    log_error(f"[ERROR] Could not connect to MQTT broker: {e}")
+    print(f"[ERROR] Could not connect to MQTT broker: {e}")
+
+# --- STATUS PAYLOAD FUNCTION ---
+def get_status_payload():
+    try:
+        # Compose a status dict similar to the old /status endpoint
+        status = {
+            'timestamp': datetime.now().isoformat(),
+            'mist_state': mist_state.copy(),
+            'last_completed_run': None,
+            'gpio_ok': True,
+        }
+        # Optionally add more fields as needed
+        try:
+            with open('/home/lds00/sprinkler/last_completed_run.json') as f:
+                status['last_completed_run'] = json.load(f)
+        except Exception:
+            status['last_completed_run'] = None
+        return status
+    except Exception as e:
+        log_error(f"[ERROR] Failed to build status payload: {e}")
+        return {'error': str(e)}
+
+# --- STATUS PUBLISHING THREAD ---
+def mqtt_status_publisher():
+    while True:
+        try:
+            payload = get_status_payload()
+            mqtt_client.publish(MQTT_TOPIC_STATUS, json.dumps(payload), qos=0, retain=True)
+        except Exception as e:
+            log_error(f"[ERROR] Failed to publish status to MQTT: {e}")
+        time.sleep(2)
+
+# Start the MQTT status publishing thread
+threading.Thread(target=mqtt_status_publisher, daemon=True).start()
+
 def env_history_logger():
+    """Background thread to log environment data every 5 minutes."""
     while True:
         time.sleep(300)  # 5 minutes
         set_name = CURRENT_RUN.get("Set") if CURRENT_RUN.get("Running") else None
         post_all_env_data(set_name)
 
-# --- REALTIME GUI POLLING (for documentation) ---
-# The GUI should poll /env-latest every second when a set or misters is running.
-# The GUI should poll /env-history every 5 minutes for historical data.
+def led_status_thread():
+    """Background thread to update status LEDs."""
+    while True:
+        test_mode = read_test_mode_from_file()
+        status_led_controller(CURRENT_RUN, test_mode=test_mode)
+        time.sleep(0.1)
 
 def main_loop():
-    global _last_test_mode, manual_set, soon_set
+    """
+    Main control loop for the sprinkler system.
+    - Loads schedule and checks if today is a watering day.
+    - Handles manual runs via manual_command.json.
+    - Handles scheduled runs for enabled sets.
+    - Prevents duplicate runs per day using last_scheduled_run.
+    - Calls mist_manager for mist logic.
+    - Updates test mode state and logs changes.
+    - Sleeps 1 second per loop.
+    """
+    global _last_test_mode, manual_set, soon_set, last_scheduled_run
     log("[DEBUG] main_loop has started")
     last_manual_mtime = 0
     _last_test_mode = read_test_mode_from_file()
@@ -460,26 +568,29 @@ def main_loop():
             continue
         # Manual run detection
         if os.path.exists(MANUAL_COMMAND_FILE):
-            mtime = os.path.getmtime(MANUAL_COMMAND_FILE)
-            if mtime > last_manual_mtime:
-                try:
-                    data = load_json(MANUAL_COMMAND_FILE)
-                    sets = data.get("manual_run", {}).get("sets", [])
-                    manual_set = sets[0] if sets else None
-                    run_manual_command(data, schedule)
-                except Exception as e:
-                    log(f"[ERROR] Failed to parse or execute manual command: {e}")
-                finally:
+            try:
+                mtime = os.path.getmtime(MANUAL_COMMAND_FILE)
+                if mtime > last_manual_mtime:
                     try:
-                        os.remove(MANUAL_COMMAND_FILE)
+                        data = load_json(MANUAL_COMMAND_FILE)
+                        sets = data.get("manual_run", {}).get("sets", [])
+                        manual_set = sets[0] if sets else None
+                        run_manual_command(data, schedule)
                     except Exception as e:
-                        log(f"[WARN] Could not delete manual command file: {e}")
-                last_manual_mtime = mtime
+                        log(f"[ERROR] Failed to parse or execute manual command: {e}")
+                    finally:
+                        try:
+                            os.remove(MANUAL_COMMAND_FILE)
+                        except Exception as e:
+                            log(f"[WARN] Could not delete manual command file: {e}")
+                    last_manual_mtime = mtime
+            except Exception as e:
+                log(f"[ERROR] Could not stat manual command file: {e}")
         else:
             manual_set = None
         # Scheduled soon detection
         soon_set = get_next_scheduled_set(schedule, current_time)
-
+        # Scheduled run detection
         if should_run_today(schedule):
             for entry in schedule.get("start_times", []):
                 sched_time = entry["time"]
@@ -505,26 +616,29 @@ def main_loop():
                             daemon=True
                         ).start()
                     last_scheduled_run[sched_time] = today_str
-        else:
-            # Not a watering day, skip scheduling
-            pass
-
         # Enhanced mist logic: use temperature_settings
         mist_manager(schedule)
-
+        # Test mode state update
         current_test_mode = read_test_mode_from_file()
         if current_test_mode != _last_test_mode:
             log(f"[INFO] TEST_MODE changed to {current_test_mode}")
             _last_test_mode = current_test_mode
-
         time.sleep(1)
 
-def led_status_thread():
-    while True:
-        test_mode = read_test_mode_from_file()
-        # Use CURRENT_RUN, test_mode, manual_set, soon_set, error_zones, maintenance
-        status_led_controller(CURRENT_RUN, test_mode=test_mode)
-        time.sleep(0.1)
+import signal
+import sys
+
+def handle_sigterm(signum, frame):
+    print(f"[DEBUG] Received signal {signum}. Exiting.")
+    try:
+        GPIO.cleanup()
+        print("[DEBUG] GPIO cleaned up.")
+    except Exception as e:
+        print(f"[WARN] GPIO cleanup failed: {e}")
+    sys.exit(0)
+
+signal.signal(signal.SIGTERM, handle_sigterm)
+signal.signal(signal.SIGINT, handle_sigterm)
 
 if __name__ == "__main__":
     # Now safe to initialize GPIO and start threads
@@ -547,18 +661,6 @@ if __name__ == "__main__":
     py_logging.getLogger('werkzeug').setLevel(py_logging.WARNING)
     # DO NOT run Flask server here. Run it separately using flask_api.py
     log("[INFO] main.py started without running Flask server. Start flask_api.py separately for API endpoints.")
-
-import signal
-import sys
-
-def handle_sigterm(signum, frame):
-    print(f"[DEBUG] Received signal {signum}. Exiting.")
-    try:
-        GPIO.cleanup()
-        print("[DEBUG] GPIO cleaned up.")
-    except Exception as e:
-        print(f"[WARN] GPIO cleanup failed: {e}")
-    sys.exit(0)
-
-signal.signal(signal.SIGTERM, handle_sigterm)
-signal.signal(signal.SIGINT, handle_sigterm)
+    print("[INFO] main.py is running. Background threads started.")
+    while True:
+        time.sleep(1)
